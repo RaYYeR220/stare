@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "seed": "pnpm --filter @stare/seed seed"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

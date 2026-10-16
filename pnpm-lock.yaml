@@ -44,6 +44,12 @@ importers:
       '@stare/core':
         specifier: workspace:*
         version: link:../core
+      '@stare/llm':
+        specifier: workspace:*
+        version: link:../llm
+      dotenv:
+        specifier: 16.6.1
+        version: 16.6.1
 
 packages:
 

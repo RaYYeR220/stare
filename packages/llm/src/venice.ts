@@ -60,7 +60,15 @@ export class VeniceClient {
           await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
           continue;
         }
-        if (!res.ok) throw new Error(`Venice ${res.status}: ${(await res.text()).slice(0, 300)}`);
+        if (!res.ok) {
+          const text = await res.text();
+          // Some models only run with reasoning on; retry the same request without disabling it.
+          if (res.status === 400 && /thinking-only/i.test(text) && (body as { venice_parameters?: Record<string, unknown> }).venice_parameters?.disable_thinking) {
+            (body as { venice_parameters: Record<string, unknown> }).venice_parameters.disable_thinking = false;
+            continue;
+          }
+          throw new Error(`Venice ${res.status}: ${text.slice(0, 300)}`);
+        }
         return (await res.json()) as T;
       } catch (e) {
         last = e;
