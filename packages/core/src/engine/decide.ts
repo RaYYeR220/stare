@@ -204,22 +204,23 @@ interface PlanInput {
 
 async function planOutcome(ctx: EngineCtx, db: Db, v: Verdict, p: PlanInput): Promise<Plan> {
   const plan: Plan = { outcome: 'escalated', value: null, basis: 'none', citations: [], ruleId: null, refusal: null, escalate: true };
-  if (v.limitViolations.length) {
-    const c = v.limitViolations[0]!;
-    return { ...plan, outcome: 'denied', value: 0, basis: 'policy', escalate: false, refusal: { code: 'POLICY_LIMIT', detail: `${v.policyVersionId} ${c.key}: ${c.text ?? ''}` } };
-  }
 
   // Who may act: an agent acts only on a live delegation from someone who still holds that authority.
   let effectiveCap = 0;
   if (p.req.principal.kind === 'agent') {
     const dels = await db.ro<{ personId: string; name: string; delegated: number; authority: number }>(Q.delegation, {
-      agentId: p.req.principal.id, policyId: p.policyId, now: p.now,
+      agentId: p.req.principal.id, policyId: p.policyId, now: p.now, accountId: p.accountId,
     });
     const bestDel = dels.map((d) => ({ ...d, cap: Math.min(d.delegated, d.authority) })).sort((a, b) => b.cap - a.cap)[0];
     if (bestDel && bestDel.cap > 0) {
       v.delegation = { personId: bestDel.personId, name: bestDel.name, cap: bestDel.cap };
       effectiveCap = bestDel.cap;
     }
+  }
+
+  if (v.limitViolations.length) {
+    const c = v.limitViolations[0]!;
+    return { ...plan, outcome: 'denied', value: 0, basis: 'policy', escalate: false, refusal: { code: 'POLICY_LIMIT', detail: `${v.policyVersionId} ${c.key}: ${c.text ?? ''}` } };
   }
 
   if (p.routine) {

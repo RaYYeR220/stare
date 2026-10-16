@@ -120,6 +120,26 @@ describe('decide() on Northwind Cloud', () => {
     expect(flagOf(v, 'Lumen Retail')).toBe('red');
   });
 
+  it('never acts on a delegation from someone who owns the account', async () => {
+    const ctx = await ctxFor();
+    // Make Priya (the support agent's main delegator) the owner of Harbor City Transit.
+    await ctx.db.rw("MATCH (p:Person {id:'p-priya'}), (a:Account {name:'Harbor City Transit'}) CREATE (p)-[:OWNS {validFrom:0, validTo:253402300799000}]->(a)");
+    const v = await decide(ctx, inbox('in-northstar-like'));
+    expect(v.delegation?.name).not.toBe('Priya Raman');
+    expect(v.outcome).not.toBe('approved');
+  });
+
+  it('the commit re-checks the delegation inside the write (revoked between plan and commit)', async () => {
+    const ctx = await ctxFor();
+    const slow = { ...ctx, embedder: { ...ctx.embedder, model: 'x', dim: 32, embed: async (t: string[]) => {
+      await ctx.db.rw("MATCH (:Person {id:'p-priya'})-[d:DELEGATES]->(:Agent {id:'a-support'}) SET d.validTo = 0");
+      return new HashEmbedder(32).embed(t);
+    } } };
+    const v = await decide(slow, inbox('in-northstar-like'));
+    expect(v.outcome).not.toBe('approved');
+    expect(v.decisionId).toBeNull();
+  });
+
   it('routes over the live reporting graph with algo.SPpaths', async () => {
     const v = await run('in-terms-60');
     expect(v.outcome).toBe('counter');

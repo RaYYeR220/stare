@@ -42,13 +42,17 @@ ORDER BY pv.effectiveFrom DESC LIMIT 1`,
   delegation: q(
     'engine.delegation',
     'ro',
-    "The agent's live delegations for this policy, and whether each delegator still holds the authority delegated.",
+    "The agent's live delegations for this policy, whether each delegator still holds the authority delegated, and excluding delegators who own the account (separation of duties).",
     `
 MATCH (ag:Agent {id:$agentId})<-[d:DELEGATES]-(p:Person)
 WHERE d.policyId = $policyId AND d.validFrom <= $now AND $now < d.validTo AND p.leftAt > $now
 OPTIONAL MATCH (p)-[h:HOLDS]->(:Role)-[g:MAY_APPROVE]->(:Policy {id:$policyId})
 WHERE h.validFrom <= $now AND $now < h.validTo AND g.validFrom <= $now AND $now < g.validTo
 WITH p, d, max(g.cap) AS authority
+OPTIONAL MATCH (p)-[ow:OWNS]->(:Account {id:$accountId})
+WHERE ow.validFrom <= $now AND $now < ow.validTo
+WITH p, d, authority, count(ow) AS owned
+WHERE owned = 0
 RETURN p.id AS personId, p.name AS name, d.cap AS delegated, coalesce(authority, 0) AS authority`,
   ),
 
@@ -181,7 +185,7 @@ RETURN c.id AS id`,
   commitDecision: q(
     'engine.commitDecision',
     'rw',
-    'Commit a terminal decision atomically: re-check budget, policy version, precedent standing and rule status inside the write; create the decision, spend the budget, append to the ledger. Any failed check writes nothing.',
+    'Commit a terminal decision atomically: re-check budget, policy version, precedent standing, rule status, the live delegation, the delegator authority and independence inside the write; create the decision, spend the budget, append to the ledger. Any failed check writes nothing.',
     `
 ${LEDGER_HEAD}
 MATCH (c:Case {id:$caseId}) WHERE c.status <> 'decided'
@@ -198,9 +202,19 @@ WHERE size(precs) = size($citeIds) AND all(x IN precs WHERE stare.standing(x, $n
 OPTIONAL MATCH (rule:StandingRule {id:$ruleId})
 WITH lh, c, pv, maker, a, rs, b, precs, rule
 WHERE $ruleId = '' OR (rule IS NOT NULL AND stare.ruleStatus(rule, $now) = 'ratified')
-OPTIONAL MATCH (auth:Person {id:$authId})
-WITH lh, c, pv, maker, a, rs, b, precs, rule, auth
-WHERE $authId = '' OR auth IS NOT NULL
+WITH lh, c, pv, maker, a, rs, b, precs, rule
+WHERE NOT maker:Agent OR $authId <> '' OR $outcome = 'denied'
+OPTIONAL MATCH (auth:Person {id:$authId})-[dl:DELEGATES]->(maker)
+WHERE dl.policyId = $policyId AND dl.validFrom <= $now AND $now < dl.validTo AND dl.cap >= $value AND auth.leftAt > $now
+WITH lh, c, pv, maker, a, rs, b, precs, rule, auth, count(dl) AS delegations
+WHERE $authId = '' OR delegations > 0
+OPTIONAL MATCH (auth)-[h:HOLDS]->(:Role)-[g:MAY_APPROVE]->(:Policy {id:$policyId})
+WHERE h.validFrom <= $now AND $now < h.validTo AND g.validFrom <= $now AND $now < g.validTo
+WITH lh, c, pv, maker, a, rs, b, precs, rule, auth, max(g.cap) AS authCap
+WHERE $authId = '' OR NOT $exception OR authCap >= $value
+OPTIONAL MATCH (auth)-[ow:OWNS]->(a) WHERE ow.validFrom <= $now AND $now < ow.validTo
+WITH lh, c, pv, maker, a, rs, b, precs, rule, auth, count(ow) AS authOwns
+WHERE $authId = '' OR authOwns = 0
 CREATE (d:Decision {id:$decisionId, caseId:$caseId, outcome:$outcome, value:$value, requested:$requested, basis:$basis, at:$now,
                     policyId:$policyId, policyVersionId:$pvId, accountId:$accountId, facts:$facts, narrative:$narrative})
 CREATE (d)-[:DECIDES]->(c), (d)-[:APPLIED_POLICY]->(pv), (d)-[:MADE_BY]->(maker), (d)-[:ABOUT]->(a), (d)-[:BECAUSE]->(rs)
