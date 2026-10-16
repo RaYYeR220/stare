@@ -10,4 +10,5 @@ RUN pnpm install --frozen-lockfile --filter @stare/server... --filter @stare/eva
 RUN node --input-type=module -e "const r=await fetch('https://github.com/FalkorDB/flex/releases/download/1.0.1/flex.js');const fs=await import('node:fs');fs.mkdirSync('/app/.cache',{recursive:true});fs.writeFileSync('/app/.cache/flex-1.0.1.js',await r.text())"
 ENV STARE_FLEX_PATH=/app/.cache/flex-1.0.1.js HOST=0.0.0.0 PORT=8787
 EXPOSE 8787
-CMD ["node", "--import", "tsx", "packages/server/src/main.ts"]
+WORKDIR /app/packages/server
+CMD ["node", "--import", "tsx", "src/main.ts"]
