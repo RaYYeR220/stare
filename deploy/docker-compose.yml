@@ -45,7 +45,8 @@ services:
       FALKORDB_USERNAME: auditor
       FALKORDB_PASSWORD: ${STARE_AUDITOR_PASSWORD:?set STARE_AUDITOR_PASSWORD}
       FALKORDB_DEFAULT_READONLY: "true"
-      FALKORDB_STRICT_READONLY: "true"
+      # Writes are not blocked by the MCP server: they reach FalkorDB, which refuses them for this ACL user.
+      FALKORDB_STRICT_READONLY: "false"
       MCP_TRANSPORT: http
       MCP_PORT: "8080"
       MCP_API_KEY: ${STARE_AUDITOR_KEY:?set STARE_AUDITOR_KEY}

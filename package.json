@@ -13,7 +13,9 @@
     "typecheck": "tsc -b",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "seed": "pnpm --filter @stare/seed seed"
+    "seed": "pnpm --filter @stare/seed seed",
+    "docs": "tsx scripts/gen-docs.ts",
+    "eval": "pnpm --filter @stare/eval run"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
