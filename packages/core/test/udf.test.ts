@@ -27,5 +27,9 @@ describe('stare UDF basics', () => {
     expect(exc.limit).toEqual([]);
     const banned = await run({ days: 10, value: 9000, accountStatus: 'collections' });
     expect(banned.limit.map((c: any) => c.key).sort()).toEqual(['4.5', '4.6']);
+    // missing facts fail closed
+    const missing = await run({ days: 10 });
+    expect(missing.limit.map((c: any) => c.key).sort()).toEqual(['4.5', '4.6']);
+    expect(missing.default.map((c: any) => c.key)).toEqual(['4.2']);
   });
 });

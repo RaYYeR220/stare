@@ -80,27 +80,37 @@ function evalOp(actual, op, expected) {
 function violations(factsIn, pv) {
   var facts = parseFacts(factsIn);
   var res = { limit: [], default: [] };
-  if (!pv) return res;
+  if (!pv) {
+    res.limit.push({ clauseId: '', key: 'no-version', field: null, op: null, value: null, actual: null, unreadable: true });
+    return res;
+  }
   var clauses = out(pv, 'HAS_CLAUSE');
   for (var i = 0; i < clauses.length; i++) {
     var c = clauses[i];
-    var rule;
+    var kind = attr(c, 'kind', 'limit');
+    var rule = null;
     try {
-      rule = JSON.parse(attr(c, 'rule', '{}'));
+      rule = JSON.parse(attr(c, 'rule', ''));
     } catch (e) {
+      rule = null;
+    }
+    if (!rule || !rule.field || !rule.op) {
+      // A clause we cannot read is treated as violated: never grant on a rule we could not evaluate.
+      (kind === 'default' ? res.default : res.limit).push({
+        clauseId: attr(c, 'id', ''), key: attr(c, 'key', ''), field: null, op: null, value: null, actual: null, unreadable: true,
+      });
       continue;
     }
     var v = facts[rule.field];
-    if (v === undefined || v === null) continue;
-    if (!evalOp(v, rule.op, rule.value)) {
-      var kind = attr(c, 'kind', 'limit');
+    // A missing fact cannot satisfy a clause: fail closed.
+    if (v === undefined || v === null || !evalOp(v, rule.op, rule.value)) {
       (kind === 'default' ? res.default : res.limit).push({
         clauseId: attr(c, 'id', ''),
         key: attr(c, 'key', ''),
         field: rule.field,
         op: rule.op,
         value: rule.value,
-        actual: v,
+        actual: v === undefined ? null : v,
       });
     }
   }
@@ -195,7 +205,10 @@ function authorityProblems(d) {
       });
     }
   }
-  if (attr(d, 'basis', '') === 'routine') return problems;
+  // Routine (inside the default envelope of the version it applied) needs no approver.
+  // Derived from the facts, never from the stored `basis`, so a mislabelled exception can't skip the check.
+  var applied = out(d, 'APPLIED_POLICY');
+  if (applied.length && violations(attr(d, 'facts', '{}'), applied[0]).default.length === 0) return problems;
   var a = authorityAt(person, policyId, value, at);
   if (!a.ok) {
     problems.push({
@@ -215,7 +228,14 @@ function authorityProblems(d) {
 function standingOf(d, now, memo, onStack, depth) {
   var key = d.id;
   if (memo[key]) return memo[key];
-  if (onStack[key] || depth > MAX_DEPTH) return { flag: 'green', reasons: [], chain: [] };
+  if (onStack[key] || depth > MAX_DEPTH) {
+    // A citation loop or an over-deep chain can't be verified: treat as caution, never as good law.
+    return {
+      flag: 'yellow',
+      reasons: [{ code: 'UNVERIFIABLE', detail: onStack[key] ? 'citation cycle' : 'citation chain deeper than ' + MAX_DEPTH, nodeId: attr(d, 'id', '') }],
+      chain: [],
+    };
+  }
   onStack[key] = true;
 
   var reasons = [];
@@ -231,10 +251,14 @@ function standingOf(d, now, memo, onStack, depth) {
   for (var k = 0; k < ap.length; k++) reasons.push(ap[k]);
 
   var applied = out(d, 'APPLIED_POLICY');
-  if (applied.length) {
+  if (!applied.length) {
+    reasons.push({ code: 'SUPERSEDED', detail: 'no policy version recorded', nodeId: attr(d, 'id', '') });
+  } else {
     var policy = policyOf(applied[0]);
     var current = policy ? versionAt(policy, now) : null;
-    if (current && current.id !== applied[0].id) {
+    if (!current) {
+      reasons.push({ code: 'SUPERSEDED', detail: 'no version of the policy is in force', nodeId: attr(applied[0], 'id', '') });
+    } else if (current.id !== applied[0].id) {
       var v = violations(attr(d, 'facts', '{}'), current);
       for (var m = 0; m < v.limit.length; m++) {
         reasons.push({
@@ -311,10 +335,12 @@ function covers(p, factsIn) {
   var f = parseFacts(factsIn);
   var pf = parseFacts(attr(p, 'facts', '{}'));
   var res = { covers: false, partial: false, maxValue: attr(p, 'value', 0) };
-  if (attr(p, 'policyId', '') !== f.policyId) return res;
-  if (pf.reason !== f.reason) return res;
-  if ((TIER_RANK[f.tier] || 0) < (TIER_RANK[pf.tier] || 0)) return res;
-  if (f.days !== undefined && pf.days !== undefined && f.days > pf.days) return res;
+  // Every comparison fails closed: a missing or unknown value never counts as covered.
+  if (!f.policyId || attr(p, 'policyId', '') !== f.policyId) return res;
+  if (!f.reason || pf.reason !== f.reason) return res;
+  if (!TIER_RANK[f.tier] || !TIER_RANK[pf.tier] || TIER_RANK[f.tier] < TIER_RANK[pf.tier]) return res;
+  if (typeof f.value !== 'number') return res;
+  if (f.days !== undefined && (typeof pf.days !== 'number' || f.days > pf.days)) return res;
   var outcome = attr(p, 'outcome', '');
   if (outcome !== 'approved' && outcome !== 'counter') return res;
   var pv = attr(p, 'value', 0);
