@@ -30,6 +30,12 @@ importers:
         specifier: 6.8.0
         version: 6.8.0
 
+  packages/seed:
+    dependencies:
+      '@stare/core':
+        specifier: workspace:*
+        version: link:../core
+
 packages:
 
   '@biomejs/biome@2.5.15':

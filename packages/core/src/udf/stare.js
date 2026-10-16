@@ -349,8 +349,10 @@ function covers(p, factsIn) {
   if (!TIER_RANK[f.tier] || !TIER_RANK[pf.tier] || TIER_RANK[f.tier] < TIER_RANK[pf.tier]) return res;
   if (typeof f.value !== 'number') return res;
   // Days since charge is monotone: if either side carries it, both must, and the case may not be older.
-  if (f.days !== undefined || pf.days !== undefined) {
-    if (typeof f.days !== 'number' || typeof pf.days !== 'number' || f.days > pf.days) return res;
+  var fd = f.days === null ? undefined : f.days;
+  var pd = pf.days === null ? undefined : pf.days;
+  if (fd !== undefined || pd !== undefined) {
+    if (typeof fd !== 'number' || typeof pd !== 'number' || fd > pd) return res;
   }
   var outcome = attr(p, 'outcome', '');
   if (outcome !== 'approved' && outcome !== 'counter') return res;
