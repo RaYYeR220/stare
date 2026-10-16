@@ -24,7 +24,7 @@ Everything below runs on the live deployment: no sign-up, no keys. Each visitor 
 - The business record survives: decisions keep their authority and citations, and are re-grounded on the erasure record.
 
 **6. Proof tab.**
-- **Race:** 64 concurrent requests from three agents on 16 connections, with every invariant checked in the graph.
+- **Race:** 64 concurrent requests from three agents on 16 connections, with every invariant checked in the graph. It runs on a throwaway copy of your desk, so your budgets stay as they were.
 - **Isolation:** your desk's own FalkorDB user tries another tenant's graph, `GRAPH.LIST`, `GRAPH.COPY` and `GRAPH.UDF`. Each attempt gets FalkorDB's verbatim `NOPERM`, read back from `ACL LOG`.
 - **Ledger:** recomputed end to end.
 - **Evaluation:** the sealed 112-case table.
@@ -39,4 +39,4 @@ Everything below runs on the live deployment: no sign-up, no keys. Each visitor 
 - `packages/core/src/udf/stare.js`: good law, coverage, SHA-256, the erasure scanner (FalkorDB UDFs).
 - `packages/core/src/engine/queries.ts`: every query the engine runs. All of them are listed in [`docs/queries.md`](docs/queries.md).
 - `packages/eval/cases/SEAL`: the hash committed before any run.
-- [`CLAIMS.md`](CLAIMS.md): each claim with its proof. `pnpm test` runs 96 tests against a real FalkorDB.
+- [`CLAIMS.md`](CLAIMS.md): each claim with its proof. `pnpm test` runs 99 tests against a real FalkorDB.

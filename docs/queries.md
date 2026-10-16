@@ -104,7 +104,7 @@ For each candidate precedent: does it cover the request (stare.covers) and is it
 MATCH (d:Decision) WHERE d.id IN $ids
 OPTIONAL MATCH (d)-[:ABOUT]->(a:Account)
 OPTIONAL MATCH (d)-[:MADE_BY]->(m)
-RETURN d.id AS id, d.value AS value, d.at AS at, d.facts AS facts, d.outcome AS outcome, a.name AS account,
+RETURN d.id AS id, d.value AS value, d.at AS at, d.facts AS facts, d.outcome AS outcome, d.basis AS basis, a.name AS account,
        m.name AS madeBy, labels(m)[0] AS makerKind, stare.covers(d, $facts) AS cover, stare.standing(d, $now) AS standing
 ```
 
@@ -276,6 +276,22 @@ MATCH (d:Decision {caseId:$caseId})
 OPTIONAL MATCH (d)-[:MADE_BY]->(m)
 RETURN d.id AS id, d.outcome AS outcome, d.value AS value, d.requested AS requested, d.basis AS basis, d.ledgerSeq AS seq,
        d.narrative AS narrative, d.policyVersionId AS policyVersionId, m.id AS madeBy
+```
+
+### `engine.openEscalation` (read)
+
+Open escalation for a case.
+
+```cypher
+MATCH (e:Escalation {status:'open'})-[:FOR]->(:Case {id:$caseId}) RETURN e.id AS id
+```
+
+### `engine.recordedCitations` (read)
+
+The precedents a recorded decision cited.
+
+```cypher
+MATCH (:Decision {id:$id})-[:CITES]->(p:Decision) RETURN p.id AS id
 ```
 
 ### `engine.setNarrative` (write)
@@ -701,6 +717,17 @@ MATCH (k:Contact {id:$contactId})
 OPTIONAL MATCH (k)-[:SALTED_BY]->(s:Salt)
 DETACH DELETE k, s
 RETURN 1 AS ok
+```
+
+### `erasure.namePartsLeft` (read)
+
+Records that were about the subject and still contain their first or last name.
+
+```cypher
+MATCH (n) WHERE n.id IN $ids
+WITH n, CASE WHEN n:Decision THEN n.narrative WHEN n:Case THEN n.text WHEN n:Episode THEN n.summary WHEN n:Handoff THEN n.note ELSE n.text END AS txt
+WHERE any(p IN $parts WHERE toLower(coalesce(txt, '')) CONTAINS toLower(p))
+RETURN n.id AS id, labels(n)[0] AS label
 ```
 
 ### `erasure.leftovers` (read)

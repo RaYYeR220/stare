@@ -272,6 +272,20 @@ RETURN d.id AS id, d.outcome AS outcome, d.value AS value, d.requested AS reques
        d.narrative AS narrative, d.policyVersionId AS policyVersionId, m.id AS madeBy`,
   ),
 
+  openEscalation: q(
+    'engine.openEscalation',
+    'ro',
+    'Open escalation for a case.',
+    "MATCH (e:Escalation {status:'open'})-[:FOR]->(:Case {id:$caseId}) RETURN e.id AS id",
+  ),
+
+  recordedCitations: q(
+    'engine.recordedCitations',
+    'ro',
+    'The precedents a recorded decision cited.',
+    'MATCH (:Decision {id:$id})-[:CITES]->(p:Decision) RETURN p.id AS id',
+  ),
+
   setNarrative: q(
     'engine.setNarrative',
     'rw',

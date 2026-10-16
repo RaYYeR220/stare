@@ -27,12 +27,19 @@ export interface Config {
   embedCache: string;
 }
 
+function tokenSecret(v: string | undefined): string {
+  if (!v) return randomBytes(32).toString('hex');
+  if (v === 'change-me' || v.length < 16)
+    throw new Error('STARE_TOKEN_SECRET is a placeholder or too short; set a random secret');
+  return v;
+}
+
 export function configFromEnv(env = process.env): Config {
   return {
     falkorUrl: env.FALKORDB_URL ?? 'falkor://127.0.0.1:6390',
     adminUser: env.FALKORDB_ADMIN_USER || undefined,
     adminPassword: env.FALKORDB_ADMIN_PASSWORD || undefined,
-    tokenSecret: env.STARE_TOKEN_SECRET ?? randomBytes(32).toString('hex'),
+    tokenSecret: tokenSecret(env.STARE_TOKEN_SECRET),
     publicUrl: env.STARE_PUBLIC_URL ?? 'http://127.0.0.1:8787',
     sandboxTtlMs: Number(env.STARE_SANDBOX_TTL_MS ?? 2 * 3600e3),
     maxSandboxes: Number(env.STARE_MAX_SANDBOXES ?? 150),
@@ -49,6 +56,8 @@ export interface Grant {
   sbx: string;
   principal: Principal;
   exp: number;
+  /** `desk` tokens open the REST console; `mcp` tokens only work on /mcp. Missing means `desk`. */
+  aud?: 'desk' | 'mcp';
 }
 
 const b64 = (s: string) => Buffer.from(s).toString('base64url');
@@ -73,6 +82,7 @@ export function verifyToken(
   try {
     const g = JSON.parse(Buffer.from(body, 'base64url').toString()) as Grant;
     if (typeof g.exp !== 'number' || g.exp <= now) return null;
+    if (g.aud !== undefined && g.aud !== 'desk' && g.aud !== 'mcp') return null;
     if (!/^[a-f0-9]{12}$/.test(g.sbx)) return null;
     if (
       !g.principal ||
@@ -222,7 +232,12 @@ export class Runtime {
     if (s.expiresAt <= Date.now()) return null;
     if (!s.client) {
       try {
-        s.client = await connect({ url: this.cfg.falkorUrl, username: s.user, password: s.password, reconnect: true });
+        s.client = await connect({
+          url: this.cfg.falkorUrl,
+          username: s.user,
+          password: s.password,
+          reconnect: true,
+        });
       } catch {
         // the sandbox user no longer exists (e.g. after a database restart): the desk is gone
         this.sandboxes.delete(id);
@@ -250,8 +265,13 @@ export class Runtime {
     return s ? { user: s.user, password: s.password, graph: s.graph } : null;
   }
 
-  token(sbx: string, principal: Principal, ttlMs = this.cfg.sandboxTtlMs): string {
-    return signToken(this.cfg.tokenSecret, { sbx, principal, exp: Date.now() + ttlMs });
+  token(
+    sbx: string,
+    principal: Principal,
+    ttlMs = this.cfg.sandboxTtlMs,
+    aud: 'desk' | 'mcp' = 'desk',
+  ): string {
+    return signToken(this.cfg.tokenSecret, { sbx, principal, exp: Date.now() + ttlMs, aud });
   }
 
   grant(token: string | null): Grant | null {

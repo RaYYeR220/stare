@@ -6,6 +6,8 @@ import {
   adoptPolicy,
   approvalBottlenecks,
   connect,
+  copyGraph,
+  Db,
   decide,
   departPerson,
   draftFromCurrent,
@@ -127,7 +129,8 @@ export function restApi(rt: Runtime) {
   // everything below needs a desk token
   app.use('/*', async (c, next) => {
     const g = rt.grant(bearer(c.req.header('authorization')));
-    if (!g) return c.json({ error: 'missing or expired desk token; open a new desk' }, 401);
+    if (!g || (g.aud ?? 'desk') !== 'desk')
+      return c.json({ error: 'missing or expired desk token; open a new desk' }, 401);
     const ctx = await rt.ctx(g.sbx);
     if (!ctx) return c.json({ error: 'this desk has expired; open a new one' }, 410);
     if (c.req.method !== 'GET' && !heavy.ok(g.sbx)) return c.json({ error: 'slow down a little' }, 429);
@@ -156,9 +159,12 @@ export function restApi(rt: Runtime) {
 
   app.get('/cases', async (c) =>
     c.json(
-      await c
-        .get('ctx')
-        .db.ro(VIEW_QUERIES.cases, { limit: Math.min(Number(c.req.query('limit') ?? 40), 200) }),
+      await c.get('ctx').db.ro(VIEW_QUERIES.cases, {
+        limit: Math.max(
+          1,
+          Math.min(Number.isFinite(Number(c.req.query('limit'))) ? Number(c.req.query('limit')) : 40, 200),
+        ),
+      }),
     ),
   );
   app.get('/people', async (c) => c.json(await c.get('ctx').db.ro(VIEW_QUERIES.people, { now: now() })));
@@ -243,7 +249,7 @@ export function restApi(rt: Runtime) {
       text?: string;
     }[];
     draft.clauses = draft.clauses.map((cl) => {
-      const ch = changes.find((x) => x.key === cl.key);
+      const ch = changes.find((x) => x?.key === cl.key);
       return ch ? { ...cl, text: ch.text ?? cl.text, rule: { ...cl.rule, value: ch.value } } : cl;
     });
     draft.note = b.note ? String(b.note).slice(0, 200) : undefined;
@@ -273,15 +279,25 @@ export function restApi(rt: Runtime) {
   });
   app.get('/erasures', async (c) => c.json(await c.get('ctx').db.ro(VIEW_QUERIES.erasures)));
 
+  /** The burst runs on a throwaway GRAPH.COPY of this desk, so it never spends the desk's own budgets. */
   app.post('/race', async (c) => {
     const ctx = c.get('ctx');
     const creds = rt.sandboxCreds(c.get('sbx'))!;
-    const report = await runRace(
-      ctx,
-      () => connect({ url: rt.cfg.falkorUrl, username: creds.user, password: creds.password }),
-      { n: 64, connections: 16 },
-    );
-    return c.json(report);
+    const copy = `${creds.graph}:race:${Date.now().toString(36)}`;
+    await copyGraph(rt.admin, creds.graph, copy);
+    try {
+      const report = await runRace(
+        { ...ctx, db: new Db(ctx.db.client, copy) },
+        () => connect({ url: rt.cfg.falkorUrl, username: creds.user, password: creds.password }),
+        { n: 64, connections: 16 },
+      );
+      return c.json({ ...report, graph: copy });
+    } finally {
+      await rt.admin
+        .selectGraph(copy)
+        .delete()
+        .catch(() => {});
+    }
   });
 
   app.get('/isolation', async (c) => {
@@ -311,11 +327,13 @@ export function restApi(rt: Runtime) {
     const text = String(b.text ?? '').slice(0, 2000);
     if (!text.trim()) return c.json({ error: 'empty request' }, 400);
     const agent = (
-      typeof b.agent === 'string' && b.agent in ROSTER ? b.agent : routeTo(String(b.channel ?? ''), text)
+      typeof b.agent === 'string' && Object.hasOwn(ROSTER, b.agent)
+        ? b.agent
+        : routeTo(String(b.channel ?? ''), text)
     ) as keyof typeof ROSTER;
     const client = await connectDesk(
       rt.selfMcpUrl,
-      rt.token(c.get('sbx'), { kind: 'agent', id: agent }, 10 * 60_000),
+      rt.token(c.get('sbx'), { kind: 'agent', id: agent }, 10 * 60_000, 'mcp'),
     );
     try {
       const model =
@@ -371,7 +389,11 @@ export function restApi(rt: Runtime) {
         ? { kind: 'person', id }
         : null;
     if (!principal) return c.json({ error: 'bad principal' }, 400);
-    return c.json({ url: `${rt.cfg.publicUrl}/mcp`, token: rt.token(c.get('sbx'), principal), principal });
+    return c.json({
+      url: `${rt.cfg.publicUrl}/mcp`,
+      token: rt.token(c.get('sbx'), principal, undefined, 'mcp'),
+      principal,
+    });
   });
 
   return app;

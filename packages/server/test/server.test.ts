@@ -80,6 +80,12 @@ const api =
     return { status: r.status, body: (await r.json().catch(() => null)) as any };
   };
 
+async function mcpToken(deskToken: string, principal = 'a-support'): Promise<string> {
+  const r = await api(deskToken)('/mcp-token', { method: 'POST', body: JSON.stringify({ principal }) });
+  expect(r.status).toBe(200);
+  return r.body.token as string;
+}
+
 async function mcpClient(
   token: string,
   onElicit?: (msg: string) => Record<string, string | number | boolean> | null,
@@ -122,6 +128,34 @@ describe('REST desk', () => {
     expect(view.body.decision.standing.flag).toBe('green');
   });
 
+  it('answers a repeated request with the recorded decision and its full analysis', async () => {
+    const { token } = await desk();
+    const call = api(token);
+    const body = JSON.stringify({ text: buildNorthwind().inbox[0]!.text });
+    const first = (await call('/decide', { method: 'POST', body })).body.verdict;
+    const again = (await call('/decide', { method: 'POST', body })).body.verdict;
+    expect(again.refusal.code).toBe('REPLAY');
+    expect(again.decisionId).toBe(first.decisionId);
+    expect(again.outcome).toBe(first.outcome);
+    const ids = (v: { citations: { id: string }[] }) => v.citations.map((c) => c.id).sort();
+    expect(ids(again)).toEqual(ids(first));
+    expect(again.candidates.length).toBe(first.candidates.length);
+  });
+
+  it('runs the race on a copy, leaving the desk budgets untouched', async () => {
+    const { token } = await desk();
+    const call = api(token);
+    const before = (await call('/overview')).body.budgets;
+    const race = await call('/race', { method: 'POST' });
+    expect(race.status).toBe(200);
+    expect((await call('/overview')).body.budgets).toEqual(before);
+    const hero = await call('/decide', {
+      method: 'POST',
+      body: JSON.stringify({ text: buildNorthwind().inbox[0]!.text }),
+    });
+    expect(hero.body.verdict.outcome).toBe('counter');
+  });
+
   it('rejects requests without a desk token, and probes isolation from the database side', async () => {
     expect((await fetch(`${url}/api/overview`)).status).toBe(401);
     const { token } = await desk();
@@ -162,7 +196,7 @@ describe('agents over MCP', () => {
 describe('MCP endpoint', () => {
   it('lists tools, files an exception, and binds the tenant to the token', async () => {
     const { token } = await desk();
-    const client = await mcpClient(token);
+    const client = await mcpClient(await mcpToken(token));
     const tools = await client.listTools();
     const names = tools.tools.map((t) => t.name);
     for (const n of [
@@ -187,7 +221,7 @@ describe('MCP endpoint', () => {
 
   it('a person approves through an elicitation (multi-round-trip); an agent cannot', async () => {
     const { token } = await desk();
-    const agent = await mcpClient(token);
+    const agent = await mcpClient(await mcpToken(token));
     const esc = (await agent.callTool({
       name: 'file_exception',
       arguments: { request: buildNorthwind().inbox[6]!.text },
@@ -228,9 +262,24 @@ describe('MCP endpoint', () => {
     expect(r.status).toBe(401);
   });
 
+  it('keeps desk and MCP tokens apart', async () => {
+    const { token } = await desk();
+    const onMcp = await fetch(`${url}/mcp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: '{}',
+    });
+    expect(onMcp.status).toBe(401);
+    const agentToken = await mcpToken(token);
+    expect((await api(agentToken)('/overview')).status).toBe(401);
+    expect(
+      (await api(agentToken)('/mcp-token', { method: 'POST', body: '{"principal":"p-priya"}' })).status,
+    ).toBe(401);
+  });
+
   it('serves the standing rules as a SKILL.md resource', async () => {
     const { token } = await desk();
-    const client = await mcpClient(token);
+    const client = await mcpClient(await mcpToken(token));
     const res = await client.readResource({ uri: 'stare://skills/standing-rules/SKILL.md' });
     expect(String((res.contents[0] as { text: string }).text)).toMatch(
       /^---\nname: northwind-cloud-exception-desk/,

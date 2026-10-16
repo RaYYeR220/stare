@@ -47,8 +47,8 @@ function Race() {
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <p style={{ maxWidth: '40em', color: 'var(--ink-2)' }}>
           Sixty-four requests at once over sixteen connections, some of them retries of the same request. The budget is
-          re-checked and spent inside the same write that records the decision, so no grant can race past it. It spends this desk’s autonomy
-          budgets for real.
+          re-checked and spent inside the same write that records the decision, so no grant can race past it. It runs on a throwaway copy
+          of this desk, so your own budgets are untouched.
         </p>
         <button type="button" className="btn" onClick={() => void run()} disabled={pending}>
           {pending ? 'Racing' : report ? 'Run it again' : 'Run the race'}

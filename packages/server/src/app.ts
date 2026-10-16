@@ -32,7 +32,7 @@ export function buildApp(rt: Runtime, opts: { allowedOrigins?: string[] } = {}) 
   app.all('/mcp', async (c) => {
     const token = bearer(c.req.header('authorization'));
     const grant = rt.grant(token);
-    if (!grant) {
+    if (grant?.aud !== 'mcp') {
       return c.json(
         {
           jsonrpc: '2.0',

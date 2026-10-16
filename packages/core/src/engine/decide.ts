@@ -203,7 +203,11 @@ export async function decide(ctx: EngineCtx, req: DecideRequest): Promise<Verdic
       })
     ).rows;
     v.caseId = c!.id;
-    if (!c!.created) return replay(db, v, c!, finish);
+    if (!c!.created) {
+      // A retry gets the recorded outcome, shown with the same analysis a first request would get.
+      const analysis = await decide({ ...ctx, modelExplanations: false }, { ...req, intake, dryRun: true });
+      return replay(db, v, c!, finish, analysis);
+    }
     const [vec] = await ctx.embedder.embed([req.text || `${best!.name} ${policyId} ${value} ${reason}`]);
     await db.rw(Q.caseLinks, {
       caseId: c!.id,
@@ -677,22 +681,26 @@ async function replay(
   v: Verdict,
   c0: { id: string; status: string; decisionId: string | null; escalationId: string | null },
   finish: () => Promise<Verdict>,
+  analysis?: Verdict,
 ): Promise<Verdict> {
   let c = c0;
   v.caseId = c.id;
+  if (analysis) {
+    v.candidates = analysis.candidates;
+    v.delegation = analysis.delegation;
+    v.route = analysis.route;
+    v.budget = analysis.budget;
+    v.rule = analysis.rule;
+    v.limitViolations = analysis.limitViolations;
+    v.defaultViolations = analysis.defaultViolations;
+    v.account = analysis.account ?? v.account;
+    v.policyId = analysis.policyId ?? v.policyId;
+  }
   // The original request may still be deciding: wait briefly for its outcome rather than guess.
   for (let i = 0; i < 40 && !c.decisionId && !c.escalationId; i++) {
     await new Promise((r) => setTimeout(r, 50));
     const [d] = await db.ro<{ id: string }>(Q.existingDecision, { caseId: c.id });
-    const [e] = await db.ro<{ id: string }>(
-      {
-        name: 'engine.openEscalation',
-        mode: 'ro',
-        doc: 'Open escalation for a case.',
-        cypher: "MATCH (e:Escalation {status:'open'})-[:FOR]->(:Case {id:$caseId}) RETURN e.id AS id",
-      },
-      { caseId: c.id },
-    );
+    const [e] = await db.ro<{ id: string }>(Q.openEscalation, { caseId: c.id });
     c = { ...c, decisionId: d?.id ?? null, escalationId: e?.id ?? null };
   }
   if (c.decisionId) {
@@ -707,6 +715,12 @@ async function replay(
       policyVersionId: string;
     }>(Q.existingDecision, { caseId: c.id });
     if (d) {
+      const cited = await db.ro<{ id: string }>(Q.recordedCitations, { id: d.id });
+      const ids = new Set(cited.map((x) => x.id));
+      // The recorded decision is in the graph now; it is not a precedent for itself.
+      v.candidates = v.candidates.filter((x) => x.id !== d.id);
+      v.citations = (analysis?.candidates ?? []).filter((x) => ids.has(x.id));
+      if (!v.citations.length && analysis) v.citations = analysis.citations.filter((x) => ids.has(x.id));
       v.outcome = d.outcome;
       v.value = d.value;
       v.basis = d.basis;
