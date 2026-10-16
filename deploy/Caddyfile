@@ -1,0 +1,15 @@
+{$STARE_HOST} {
+	encode zstd gzip
+	handle /auditor/* {
+		uri strip_prefix /auditor
+		reverse_proxy auditor:8080
+	}
+	handle {
+		reverse_proxy api:8787
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+}

@@ -1,0 +1,67 @@
+# Stare on one VM: FalkorDB, the API/MCP server, the official FalkorDB MCP server as a read-only auditor, Caddy for TLS.
+services:
+  falkordb:
+    image: falkordb/falkordb:v4.22.1
+    restart: unless-stopped
+    environment:
+      FALKORDB_ARGS: "THREAD_COUNT 4 TIMEOUT_MAX 30000 TIMEOUT_DEFAULT 10000 MAX_QUEUED_QUERIES 1000 RESULTSET_SIZE 100000"
+      REDIS_ARGS: "--requirepass ${FALKORDB_ADMIN_PASSWORD} --save 300 10"
+    volumes:
+      - falkordb-data:/var/lib/falkordb/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${FALKORDB_ADMIN_PASSWORD}\" --no-auth-warning PING | grep -q PONG"]
+      interval: 5s
+      retries: 20
+
+  api:
+    build: ..
+    image: stare-api:latest
+    restart: unless-stopped
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    environment:
+      FALKORDB_URL: falkor://falkordb:6379
+      FALKORDB_ADMIN_USER: default
+      FALKORDB_ADMIN_PASSWORD: ${FALKORDB_ADMIN_PASSWORD}
+      VENICE_API_KEY: ${VENICE_API_KEY}
+      STARE_TOKEN_SECRET: ${STARE_TOKEN_SECRET}
+      STARE_PUBLIC_URL: https://${STARE_HOST}
+      STARE_ALLOWED_ORIGINS: ${STARE_ALLOWED_ORIGINS}
+      STARE_AUDITOR_PASSWORD: ${STARE_AUDITOR_PASSWORD}
+      STARE_EMBED_CACHE: /data/embeddings.json
+    volumes:
+      - api-data:/data
+
+  auditor:
+    image: falkordb/mcpserver:latest
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      FALKORDB_USERNAME: auditor
+      FALKORDB_PASSWORD: ${STARE_AUDITOR_PASSWORD}
+      FALKORDB_DEFAULT_READONLY: "true"
+      FALKORDB_STRICT_READONLY: "true"
+      MCP_TRANSPORT: http
+      MCP_PORT: "8080"
+      MCP_API_KEY: ${STARE_AUDITOR_KEY}
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      STARE_HOST: ${STARE_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+
+volumes:
+  falkordb-data:
+  api-data:
+  caddy-data:

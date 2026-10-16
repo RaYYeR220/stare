@@ -1,8 +1,10 @@
 import 'dotenv/config';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { serve } from '@hono/node-server';
 import { applySchema, copyGraph, Db, graphOf, loadFlex, loadUdf, provisionTenantUser, templateOf, verifyLedger } from '@stare/core';
 import { CachedEmbedder } from '@stare/llm';
-import { buildGlobex, buildNorthwind, seedGraph } from '@stare/seed';
+import { buildGlobex, buildNorthwind, EMBED_CACHE, seedGraph } from '@stare/seed';
 import { buildApp } from './app.ts';
 import { configFromEnv, Runtime } from './runtime.ts';
 
@@ -16,7 +18,8 @@ export async function bootstrap(rt: Runtime) {
   await loadUdf(rt.admin);
   await loadFlex(rt.admin);
   const graphs = await rt.admin.list();
-  const cache = new CachedEmbedder(null, rt.cfg.embedCache, 'text-embedding-qwen3-0-6b', 512);
+  // Seeding always reads the embedding cache shipped with the seed, so no model key is needed to boot.
+  const cache = new CachedEmbedder(null, EMBED_CACHE, 'text-embedding-qwen3-0-6b', 512);
   for (const [tenant, build] of [['northwind', buildNorthwind], ['globex', buildGlobex]] as const) {
     const tpl = templateOf(tenant);
     if (!graphs.includes(tpl)) {
@@ -42,6 +45,10 @@ export async function bootstrap(rt: Runtime) {
 
 async function main() {
   const cfg = configFromEnv();
+  if (!existsSync(cfg.embedCache)) {
+    mkdirSync(dirname(cfg.embedCache), { recursive: true });
+    copyFileSync(EMBED_CACHE, cfg.embedCache);
+  }
   const rt = new Runtime(cfg);
   await rt.start();
   await bootstrap(rt);
