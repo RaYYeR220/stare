@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.next/
+.vercel/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+ui-prototypes/
+ui-variants/
+mockups/
+design-ref/
+variants/
+.playwright-mcp/
+screencast/
