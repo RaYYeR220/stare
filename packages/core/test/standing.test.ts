@@ -116,6 +116,11 @@ describe('stare.standing — good law', () => {
     expect((await standing(db, 'M1', NOW)).reasons[0]!.code).toBe('NO_AUTHORITY');
   });
 
+  it('routine-ness is judged on the granted value, not on a value claimed in the facts JSON', async () => {
+    await decision(db, { id: 'F1', at: d(10), value: 2400, madeBy: 'ana', basis: 'routine', facts: { days: 10, value: 200 } });
+    expect((await standing(db, 'F1', NOW)).reasons[0]!.code).toBe('NO_AUTHORITY');
+  });
+
   it('a truly routine decision needs no approving role', async () => {
     await decision(db, { id: 'R1', at: d(10), value: 200, madeBy: 'sam', basis: 'routine', facts: { days: 10 } });
     expect((await standing(db, 'R1', NOW)).flag).toBe('green');
@@ -154,5 +159,7 @@ describe('stare.covers', () => {
     expect(await run({ ...base, value: 1000, tier: 'platinum' })).toMatchObject({ covers: false, partial: false });
     expect(await run({ policyId: 'refunds', tier: 'growth', days: 40, value: 1000 })).toMatchObject({ covers: false });
     expect(await run({ ...base, value: '1000' })).toMatchObject({ covers: false, partial: false });
+    const { days: _drop, ...noDays } = base;
+    expect(await run({ ...noDays, value: 1000 })).toMatchObject({ covers: false, partial: false });
   });
 });

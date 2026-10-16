@@ -74,6 +74,14 @@ function evalOp(actual, op, expected) {
   }
 }
 
+/** A decision's facts, with the granted value and policy taken from the node itself (never from the JSON). */
+function decisionFacts(d) {
+  var f = parseFacts(attr(d, 'facts', '{}'));
+  f.value = attr(d, 'value', null);
+  f.policyId = attr(d, 'policyId', null);
+  return f;
+}
+
 // ---------------------------------------------------------------- policy
 
 /** Clauses of a PolicyVersion the facts violate, split into the routine envelope and hard limits. */
@@ -208,7 +216,7 @@ function authorityProblems(d) {
   // Routine (inside the default envelope of the version it applied) needs no approver.
   // Derived from the facts, never from the stored `basis`, so a mislabelled exception can't skip the check.
   var applied = out(d, 'APPLIED_POLICY');
-  if (applied.length && violations(attr(d, 'facts', '{}'), applied[0]).default.length === 0) return problems;
+  if (applied.length && violations(decisionFacts(d), applied[0]).default.length === 0) return problems;
   var a = authorityAt(person, policyId, value, at);
   if (!a.ok) {
     problems.push({
@@ -259,7 +267,7 @@ function standingOf(d, now, memo, onStack, depth) {
     if (!current) {
       reasons.push({ code: 'SUPERSEDED', detail: 'no version of the policy is in force', nodeId: attr(applied[0], 'id', '') });
     } else if (current.id !== applied[0].id) {
-      var v = violations(attr(d, 'facts', '{}'), current);
+      var v = violations(decisionFacts(d), current);
       for (var m = 0; m < v.limit.length; m++) {
         reasons.push({
           code: 'SUPERSEDED',
@@ -333,14 +341,17 @@ function ruleStatus(rule, now) {
  */
 function covers(p, factsIn) {
   var f = parseFacts(factsIn);
-  var pf = parseFacts(attr(p, 'facts', '{}'));
+  var pf = decisionFacts(p);
   var res = { covers: false, partial: false, maxValue: attr(p, 'value', 0) };
   // Every comparison fails closed: a missing or unknown value never counts as covered.
   if (!f.policyId || attr(p, 'policyId', '') !== f.policyId) return res;
   if (!f.reason || pf.reason !== f.reason) return res;
   if (!TIER_RANK[f.tier] || !TIER_RANK[pf.tier] || TIER_RANK[f.tier] < TIER_RANK[pf.tier]) return res;
   if (typeof f.value !== 'number') return res;
-  if (f.days !== undefined && (typeof pf.days !== 'number' || f.days > pf.days)) return res;
+  // Days since charge is monotone: if either side carries it, both must, and the case may not be older.
+  if (f.days !== undefined || pf.days !== undefined) {
+    if (typeof f.days !== 'number' || typeof pf.days !== 'number' || f.days > pf.days) return res;
+  }
   var outcome = attr(p, 'outcome', '');
   if (outcome !== 'approved' && outcome !== 'counter') return res;
   var pv = attr(p, 'value', 0);
