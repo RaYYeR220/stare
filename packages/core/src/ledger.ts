@@ -104,6 +104,7 @@ export interface LedgerVerdict {
   decisionsChecked?: number;
   mismatched?: { id: string; field: string; ledger: unknown; live: unknown }[];
   unrecorded?: string[];
+  vanished?: string[];
 }
 
 /**
@@ -126,15 +127,29 @@ export async function verifyLedger(db: Db, opts: { deep?: boolean } = {}): Promi
     if (e.prev !== prev) return fail('prev does not match previous hash');
     if (sha256Hex(e.payload) !== e.payloadHash) return fail('payload does not match its hash');
     if (sha256Hex(`${prev}|${e.payloadHash}`) !== e.hash) return fail('entry hash does not recompute');
+    // kind/refId are stored beside the payload for indexing; only the hashed payload is authoritative.
+    let body: { kind?: unknown; refId?: unknown };
+    try {
+      body = JSON.parse(e.payload);
+    } catch {
+      return fail('payload is not JSON');
+    }
+    if (body.kind !== e.kind || body.refId !== e.refId) return fail('entry kind/refId differ from the hashed payload');
     prev = e.hash;
   }
-  if ((row?.headSeq ?? 0) !== entries.length || (row?.headHash ?? GENESIS) !== prev) {
+  if (row?.headSeq == null || row.headHash == null) {
+    return { ok: false, length: entries.length, head: prev, brokenAt: 0, reason: 'ledger head missing' };
+  }
+  if (row.headSeq !== entries.length || row.headHash !== prev) {
     return { ok: false, length: entries.length, head: prev, brokenAt: entries.length, reason: 'head does not match last entry' };
   }
   if (!opts.deep) return { ok: true, length: entries.length, head: prev };
 
   const committed = new Map<string, Record<string, unknown>>();
-  for (const e of entries) if (e.kind === 'decision') committed.set(e.refId, JSON.parse(e.payload));
+  for (const e of entries) {
+    const body = JSON.parse(e.payload) as Record<string, unknown>;
+    if (body.kind === 'decision') committed.set(String(body.refId), body);
+  }
   const live = await db.ro<Record<string, unknown> & { id: string }>(Q_LEDGER_DECISIONS);
   const mismatched: NonNullable<LedgerVerdict['mismatched']> = [];
   const unrecorded: string[] = [];
@@ -148,7 +163,14 @@ export async function verifyLedger(db: Db, opts: { deep?: boolean } = {}): Promi
       if (canonicalJson(c[f] ?? null) !== canonicalJson(d[f] ?? null)) mismatched.push({ id: d.id, field: f, ledger: c[f], live: d[f] });
     }
   }
-  const ok = mismatched.length === 0 && unrecorded.length === 0;
+  const liveIds = new Set(live.map((d) => d.id));
+  const vanished = [...committed.keys()].filter((id) => !liveIds.has(id));
+  const ok = mismatched.length === 0 && unrecorded.length === 0 && vanished.length === 0;
+  const reason = unrecorded.length
+    ? 'decisions missing from the ledger'
+    : vanished.length
+      ? 'recorded decisions no longer exist'
+      : 'decision differs from what the ledger recorded';
   return {
     ok,
     length: entries.length,
@@ -156,6 +178,7 @@ export async function verifyLedger(db: Db, opts: { deep?: boolean } = {}): Promi
     decisionsChecked: live.length,
     mismatched,
     unrecorded,
-    ...(ok ? {} : { reason: unrecorded.length ? 'decisions missing from the ledger' : 'decision differs from what the ledger recorded' }),
+    vanished,
+    ...(ok ? {} : { reason }),
   };
 }

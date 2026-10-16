@@ -46,6 +46,19 @@ describe('ledger', () => {
     expect(v.mismatched).toEqual([{ id: 'D1', field: 'value', ledger: 900, live: 9000 }]);
     await db.rw(`CREATE (:Decision {id:'D2', caseId:'C2'})`);
     expect((await verifyLedger(db, { deep: true })).unrecorded).toEqual(['D2']);
+    await db.rw(`MATCH (d:Decision) DETACH DELETE d`);
+    expect(await verifyLedger(db, { deep: true })).toMatchObject({ ok: false, vanished: ['D1'], reason: 'recorded decisions no longer exist' });
+  });
+
+  it('rejects an entry whose unhashed refId was repointed, and a missing head', async () => {
+    const db = await freshDb('ledger-refid');
+    await db.rw(Q_LEDGER_INIT);
+    await db.rw(Q_LEDGER_APPEND_STANDALONE, ledgerParams('decision', 'D1', 1, {}));
+    await db.rw(`MATCH (e:LedgerEntry {seq:1}) SET e.refId = 'D9'`);
+    expect((await verifyLedger(db)).reason).toBe('entry kind/refId differ from the hashed payload');
+    await db.rw(`MATCH (e:LedgerEntry {seq:1}) SET e.refId = 'D1'`);
+    await db.rw(`MATCH (h:LedgerHead) DELETE h`);
+    expect((await verifyLedger(db)).reason).toBe('ledger head missing');
   });
 
   it('64 concurrent appends from 16 connections never fork', async () => {
