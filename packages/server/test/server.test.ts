@@ -14,6 +14,7 @@ let server: ReturnType<typeof serve>;
 let url: string;
 
 beforeAll(async () => {
+  process.env.STARE_SESSIONS_PER_IP = '100';
   const admin = await adminClient();
   // seed pristine templates under test names, then point the runtime's template names at them
   for (const [tenant, build] of [['northwind', buildNorthwind], ['globex', buildGlobex]] as const) {
@@ -34,6 +35,7 @@ beforeAll(async () => {
   await new Promise<void>((resolve) => {
     server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' }, (info) => {
       url = `http://127.0.0.1:${info.port}`;
+      rt.selfMcpUrl = `${url}/mcp`;
       resolve();
     });
   });
@@ -97,6 +99,19 @@ describe('REST desk', () => {
     expect(er.body.certificate.verdict).toBe('ERASED');
     expect(er.body.control.verdict).toBe('REFUSED');
   }, 120_000);
+});
+
+describe('agents over MCP', () => {
+  it('an agent handles a request through the desk tools and remembers it', async () => {
+    const { token } = await desk();
+    const call = api(token);
+    const t = await call('/agents/handle', { method: 'POST', body: JSON.stringify({ text: buildNorthwind().inbox[1]!.text, channel: '#support-escalations' }) });
+    expect(t.status).toBe(200);
+    expect(t.body.steps.filter((s: { kind: string }) => s.kind === 'tool').map((s: { tool: string }) => s.tool)).toEqual(['recall', 'file_exception', 'remember']);
+    expect(t.body.reply).toMatch(/APPROVED/);
+    const mem = await call('/memory?q=Harbor%20City%20Transit%20refund');
+    expect(mem.body.some((i: { text: string }) => /Harbor City Transit/.test(i.text))).toBe(true);
+  });
 });
 
 describe('MCP endpoint', () => {

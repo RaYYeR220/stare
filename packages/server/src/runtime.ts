@@ -84,6 +84,8 @@ interface SandboxConn {
 
 const REGISTRY = 'stare:sandbox-creds';
 
+export class DeskFullError extends Error {}
+
 /**
  * Owns the admin connection (provisioning only) and one connection per sandbox, made as that sandbox's
  * ACL user. Tool handlers and routes only ever receive the sandbox connection.
@@ -94,9 +96,12 @@ export class Runtime {
   readonly embedder;
   private sandboxes = new Map<string, SandboxConn>();
   private sweeper?: NodeJS.Timeout;
+  /** Where the agents reach this server's own MCP endpoint. */
+  selfMcpUrl: string;
 
   constructor(readonly cfg: Config) {
     this.embedder = new CachedEmbedder(this.models.offline ? null : this.models.embedder, cfg.embedCache, 'text-embedding-qwen3-0-6b', 512);
+    this.selfMcpUrl = process.env.STARE_SELF_MCP_URL ?? `http://127.0.0.1:${cfg.port}/mcp`;
   }
 
   async start() {
@@ -127,7 +132,7 @@ export class Runtime {
   }
 
   async openSandbox(tenant = 'northwind'): Promise<{ id: string; expiresAt: number }> {
-    if ((await this.activeSandboxes()) >= this.cfg.maxSandboxes) throw new Error('the desk is full right now; try again in a few minutes');
+    if ((await this.activeSandboxes()) >= this.cfg.maxSandboxes) throw new DeskFullError('the desk is full right now; try again in a few minutes');
     const s = await createSandbox(this.admin, templateOf(tenant), this.cfg.sandboxTtlMs);
     this.sandboxes.set(s.id, { graph: s.graph, user: s.user, password: s.password, expiresAt: s.expiresAt });
     await rawCommand(this.admin, ['HSET', REGISTRY, s.id, JSON.stringify({ graph: s.graph, user: s.user, password: s.password, expiresAt: s.expiresAt })]);

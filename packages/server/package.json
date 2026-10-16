@@ -21,9 +21,9 @@
     "dotenv": "16.6.1",
     "hono": "4.13.13",
     "zod": "4.6.7",
-    "falkordb": "6.8.0"
-  },
-  "devDependencies": {
+    "falkordb": "6.8.0",
+    "@stare/agents": "workspace:*",
     "@modelcontextprotocol/client": "2.3.1"
-  }
+  },
+  "devDependencies": {}
 }
