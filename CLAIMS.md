@@ -20,6 +20,6 @@ Every public statement about Stare, with the evidence behind it. **Reproducible*
 | Erasure removes the subject everywhere and keeps the business record; a naive delete fails the same checks | Reproducible, Live | `erasure.test.ts`; desk **Erasure** shows the certificate next to the refused control |
 | A person must confirm rulings through an MCP multi-round-trip input request; agents cannot rule | Reproducible | `packages/server/test/server.test.ts` "a person approves through an elicitation…" |
 | Explanations that name anyone or any amount outside the trace are rejected | Reproducible | `engine.test.ts` "explanation gate…" |
-| Stare 112/112, vector RAG 71/112 with $11,100 leaked, LLM-only 63/112 with $20,550 leaked | Measured | `packages/eval/results/report.md`; the key's hash in `packages/eval/cases/SEAL` was committed before the first run (see the commit history) |
+| Stare 112/112 (five runs), vector RAG 68/112 with $14,500 leaked, LLM-only 66/112 with $17,200 leaked (latest run; an earlier run is kept in `results/history`) | Measured | `packages/eval/results/report.md`; the key's hash in `packages/eval/cases/SEAL` was committed before the first run (see the commit history) |
 | Stare's 112/112 shows the system is better than the baselines in general | **Not claimed** | The key and the engine encode the same rules; the evaluation measures the baselines' failure modes, and the request parser is the only stochastic part of Stare |
 | Production readiness | **Not claimed** | One VM, one FalkorDB instance, synthetic data, demo tokens instead of SSO |

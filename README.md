@@ -32,10 +32,10 @@ The most similar past decision is the one that rests on an unauthorized approval
 | Arm | Correct | False approvals | Refund $ leaked |
 |---|---|---|---|
 | **Stare** (graph engine; model only parses the request) | **112/112** | **0** | **$0** |
-| Vector RAG (top-8 similar decisions + policy text + customer directory) | 71/112 | 13 | $11,100 |
-| LLM only (policy text + customer directory) | 63/112 | 20 | $20,550 |
+| Vector RAG (top-8 similar decisions + policy text + customer directory) | 68/112 | 13 | $14,500 |
+| LLM only (policy text + customer directory) | 66/112 | 20 | $17,200 |
 
-Stare scores 112/112 by construction: it executes the same rules the key encodes, and the only stochastic part is the model that turns a message into fields. The baselines are the point. On "a precedent that looks right but rests on an unauthorized approval", vector RAG scored **0/8**. On superseded policy, retrieval made things *worse* than no retrieval (7/12 vs 11/12), because old precedents pull towards old rules. Full report: [`packages/eval/results/report.md`](packages/eval/results/report.md).
+The baselines are stochastic: an earlier run on the same sealed key gave 71/112 ($11,100) and 63/112 ($20,550), kept in [`results/history`](packages/eval/results/history). Stare scored 112/112 in all five runs. That is by construction: it executes the same rules the key encodes, and the only stochastic part is the model that turns a message into fields. The baselines are the point. On "a precedent that looks right but rests on an unauthorized approval", vector RAG scored **0/8** in both runs. On superseded policy, retrieval made things *worse* than no retrieval (6–7/12 vs 11–12/12), because old precedents pull towards old rules. Full report: [`packages/eval/results/report.md`](packages/eval/results/report.md).
 
 **Tests.** `pnpm test` runs 95 tests against a real FalkorDB. Among them:
 - the database UDF and an independent TypeScript re-implementation agree on the good-law flag of every seeded decision;
