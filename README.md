@@ -16,9 +16,9 @@ Stare is a precedent desk for AI agents, built on [FalkorDB](https://www.falkord
 
 | | Stare | Vector retrieval only |
 |---|---|---|
-| Outcome | **Counter-offer $1,200** | Follows the nearest approved decision |
-| Relied on | Fernway Travel, Jul 2026, $1,200, decided by Ana Ruiz: ◆ good law | Whatever looks closest |
-| Not relied on | Bluefin Analytics, Dec 2025, $1,900: ▲ **Overruling Risk**. It cites Kestrel Foods (May 2025), approved by a support specialist with no refund authority (⬣ `NO_AUTHORITY`). | n/a |
+| Outcome | **Counter-offer $1,200** | Follows whichever past exception reads closest |
+| Relied on | Fernway Travel, Jul 2026, $1,200, decided by Ana Ruiz: ◆ good law | The nearest by wording, whether or not it is still good law (the desk's **Strike the citations** shows which one, with its real flag) |
+| Not relied on | Bluefin Analytics, Dec 2025, $1,900: ▲ **Overruling Risk**. It cites Kestrel Foods (May 2025), approved by a support specialist with no refund authority (⬣ `NO_AUTHORITY`). | Nothing is ruled out |
 | "Our VP already signed off" | Ignored: claims in a request are not evidence | Read by the model |
 | Full $1,800 would need | Priya Raman (VP Customer Success, up to $5,000). The path comes from `algo.SPpaths` over the live reporting graph. | n/a |
 | Recorded | A decision and a hash-chained ledger entry, with every Cypher query that ran | n/a |
