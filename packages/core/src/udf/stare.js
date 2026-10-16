@@ -372,7 +372,8 @@ function scanTerms(terms, labels, relTypes) {
   }
   var hits = [];
   function check(kind, label, x) {
-    var a = x.attributes || {};
+    // Entity attributes are host objects: their keys don't enumerate, but they serialize.
+    var a = JSON.parse(JSON.stringify(x.attributes || {}));
     for (var k in a) {
       var v = a[k];
       var vals = Array.isArray(v) ? v : [v];

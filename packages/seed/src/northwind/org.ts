@@ -344,17 +344,23 @@ export function buildAccounts(rng: Rng): { accounts: AccountRow[]; owns: OwnsRow
     const n = tier === 'standard' ? 1 : 2;
     for (let k = 0; k < n; k++) {
       const fullName = name === 'Acme Logistics' && k === 0 ? 'Marta Lindqvist' : `${rng.pick(FIRST)} ${rng.pick(LAST)}`;
+      rng.int(0, 99); // keeps the generator's stream (and so the whole history) stable
       contacts.push({
         id: `c-${id.slice(4)}-${k + 1}`,
         name: fullName,
         email: `${slug(fullName)}@${domainOf(name)}`,
-        phone: `+1-555-01${String(rng.int(0, 99)).padStart(2, '0')}`,
+        phone: phoneFor(contacts.length),
         title: k === 0 ? rng.pick(['Head of Finance', 'Billing Manager', 'Procurement Lead', 'Controller', 'Operations Director']) : rng.pick(['IT Director', 'VP Operations', 'CTO', 'Head of Data']),
         account: id,
       });
     }
   });
   return { accounts, owns, contacts };
+}
+
+/** Unique fictional numbers: the reserved 555-0100..0199 range, then Ofcom's drama range. */
+function phoneFor(i: number): string {
+  return i < 100 ? `+1-555-01${String(i).padStart(2, '0')}` : `+44 20 7946 0${String(i).padStart(3, '0')}`;
 }
 
 const FIRST = ['Elena', 'Jonas', 'Priscilla', 'Mateo', 'Aisha', 'Henrik', 'Carmen', 'Dmitri', 'Fatima', 'Graham', 'Ingrid', 'Julian', 'Keiko', 'Lorenzo', 'Nadia', 'Oscar', 'Paula', 'Rafael', 'Sienna', 'Theo', 'Ursula', 'Viktor', 'Wendy', 'Yusuf', 'Zara', 'Bruno', 'Celeste', 'Diego', 'Freya', 'Gideon'];

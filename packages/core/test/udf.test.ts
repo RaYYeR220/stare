@@ -33,3 +33,14 @@ describe('stare UDF basics', () => {
     expect(missing.default.map((c: any) => c.key)).toEqual(['4.2']);
   });
 });
+
+describe('stare.scanTerms', () => {
+  it('finds identifiers in node and edge properties (case-insensitive)', async () => {
+    const db = await freshDb('scan', false);
+    await db.rw(`CREATE (:Contact {id:'c1', name:'Marta Lindqvist'})-[:NOTE {text:'call MARTA tomorrow'}]->(:Span {id:'s1', text:'nothing here'})`);
+    const [row] = await db.ro<{ h: { kind: string; label: string; id: string; key: string }[] }>(
+      "RETURN stare.scanTerms(['marta'], ['Contact', 'Span'], ['NOTE']) AS h",
+    );
+    expect(row!.h.map((x) => `${x.kind}:${x.label}.${x.key}`).sort()).toEqual(['edge:NOTE.text', 'node:Contact.name']);
+  });
+});
