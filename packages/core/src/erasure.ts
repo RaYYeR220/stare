@@ -129,6 +129,16 @@ OPTIONAL MATCH (k)-[:SALTED_BY]->(s:Salt)
 DETACH DELETE k, s
 RETURN 1 AS ok`,
   ),
+  namePartsLeft: q(
+    'erasure.namePartsLeft',
+    'ro',
+    'Records that were about the subject and still contain their first or last name.',
+    `
+MATCH (n) WHERE n.id IN $ids
+WITH n, CASE WHEN n:Decision THEN n.narrative WHEN n:Case THEN n.text WHEN n:Episode THEN n.summary WHEN n:Handoff THEN n.note ELSE n.text END AS txt
+WHERE any(p IN $parts WHERE toLower(coalesce(txt, '')) CONTAINS toLower(p))
+RETURN n.id AS id, labels(n)[0] AS label`,
+  ),
   leftovers: q(
     'erasure.leftovers',
     'ro',
@@ -184,7 +194,11 @@ export interface Certificate {
 
 interface Snapshot {
   contactId: string;
+  /** Identifiers unique to the subject (full name, email, phone): scanned across the whole graph. */
   terms: string[];
+  /** First or last name alone: not unique, so only checked in the records that were about the subject. */
+  nameParts: string[];
+  touchedIds: string[];
   vectors: { label: string; vec: number[] }[];
 }
 
@@ -196,11 +210,12 @@ export function redact(text: string, terms: string[]): string {
   return out;
 }
 
-function termsOf(s: { name: string; email: string; phone: string }): string[] {
-  const parts = s.name.split(/\s+/).filter((p) => p.length >= 4);
-  return [...new Set([s.name, s.email, s.phone, s.email.split('@')[0]!, ...parts])].filter(
+function termsOf(s: { name: string; email: string; phone: string }): { strong: string[]; parts: string[] } {
+  const strong = [...new Set([s.name, s.email, s.phone, s.email.split('@')[0]!])].filter(
     (t) => t && t.length >= 3,
   );
+  const parts = s.name.split(/\s+/).filter((p) => p.length >= 4);
+  return { strong, parts };
 }
 
 /** The four checks of the certificate. The same function judges the real erasure and the naive control. */
@@ -212,7 +227,16 @@ export async function audit(
     ERASURE_QUERIES.scan,
     { terms: snap.terms },
   );
-  const hits = scan?.hits ?? [];
+  const leftovers = snap.nameParts.length
+    ? await db.ro<{ id: string; label: string }>(ERASURE_QUERIES.namePartsLeft, {
+        ids: snap.touchedIds,
+        parts: snap.nameParts,
+      })
+    : [];
+  const hits = [
+    ...(scan?.hits ?? []),
+    ...leftovers.map((l) => ({ label: l.label, id: l.id, key: 'text', term: 'name' })),
+  ];
   const [idScan] = await db.ro<{ hits: unknown[] }>(ERASURE_QUERIES.scan, { terms: [snap.contactId] });
   const [left] = await db.ro<{ n: number }>(ERASURE_QUERIES.leftovers, { contactId: snap.contactId });
   let closest = Number.POSITIVE_INFINITY;
@@ -237,7 +261,7 @@ export async function audit(
             .slice(0, 3)
             .map((h) => `${h.label}.${h.key}`)
             .join(', ')}`
-        : `scanned every label and relationship type for ${snap.terms.length} identifiers`,
+        : `scanned every label and relationship type for ${snap.terms.length} identifiers, and ${snap.touchedIds.length} records about the subject for their name`,
     },
     {
       id: 'C2',
@@ -270,7 +294,8 @@ async function snapshot(ctx: EngineCtx, contactId: string) {
     account: string;
   }>(ERASURE_QUERIES.subject, { contactId });
   if (!s) return null;
-  const terms = termsOf(s);
+  const { strong: terms, parts } = termsOf(s);
+  const all = [...terms, ...parts];
   const spans = await ctx.db.ro<{ id: string; embedding: number[] }>(ERASURE_QUERIES.affectedSpans, {
     contactId,
     terms,
@@ -289,17 +314,17 @@ async function snapshot(ctx: EngineCtx, contactId: string) {
   const vectors = [
     ...spans.filter((x) => x.embedding).map((x) => ({ label: 'Span', vec: x.embedding })),
     ...touched
-      .filter((x) => x.embedding && x.text && redact(x.text, terms) !== x.text)
+      .filter((x) => x.embedding && x.text && redact(x.text, all) !== x.text)
       .map((x) => ({ label: x.label, vec: x.embedding! })),
   ];
   const commitment = s.salt ? sha256Hex(`${s.salt}|${contactId}`) : sha256Hex(`unsalted|${contactId}`);
   return {
     subject: s,
-    terms,
+    terms: all,
     spanIds,
     facts,
     touched,
-    snap: { contactId, terms, vectors } as Snapshot,
+    snap: { contactId, terms, nameParts: parts, touchedIds: touched.map((t) => t.id), vectors } as Snapshot,
     commitment,
   };
 }

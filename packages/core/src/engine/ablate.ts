@@ -27,7 +27,7 @@ export interface Ablation {
 
 /**
  * "Structure off": what an agent with only vector retrieval would do on the same request. It takes the
- * most similar approved decision under the same policy and follows it. No validity, no authority, no
+ * most similar past exception granted under the same policy and follows it. No validity, no authority, no
  * policy versions, no coverage. The precedent's real flag is looked up afterwards, for the side-by-side.
  */
 export async function ablate(ctx: EngineCtx, req: DecideRequest): Promise<Ablation> {
@@ -84,13 +84,14 @@ export async function ablate(ctx: EngineCtx, req: DecideRequest): Promise<Ablati
       value: number;
       at: number;
       outcome: string;
+      basis: string;
       account: string;
       standing: Standing;
       cover: { covers: boolean };
     }>(Q.evaluateCandidates, { ids: seeds.map((s) => s.id), facts, now });
     const sim = new Map(seeds.map((s) => [s.id, 1 - s.score]));
     const top = rows
-      .filter((r) => r.outcome === 'approved')
+      .filter((r) => r.outcome === 'approved' && r.basis !== 'routine')
       .sort((a, b) => (sim.get(b.id) ?? 0) - (sim.get(a.id) ?? 0))[0];
     if (top) {
       res.precedent = {

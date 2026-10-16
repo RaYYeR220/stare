@@ -107,7 +107,7 @@ RETURN d.id AS id`,
 MATCH (d:Decision) WHERE d.id IN $ids
 OPTIONAL MATCH (d)-[:ABOUT]->(a:Account)
 OPTIONAL MATCH (d)-[:MADE_BY]->(m)
-RETURN d.id AS id, d.value AS value, d.at AS at, d.facts AS facts, d.outcome AS outcome, a.name AS account,
+RETURN d.id AS id, d.value AS value, d.at AS at, d.facts AS facts, d.outcome AS outcome, d.basis AS basis, a.name AS account,
        m.name AS madeBy, labels(m)[0] AS makerKind, stare.covers(d, $facts) AS cover, stare.standing(d, $now) AS standing`,
   ),
 

@@ -171,24 +171,29 @@ async function autonomy(
   cases: { account: string; value: number; days: number | null; reason: string }[],
 ) {
   let auto = 0;
-  for (const c of cases) {
-    const v: Verdict = await decide(
-      { ...ctx, db },
-      {
-        principal: { kind: 'agent', id: AGENT_FOR[policyId] },
-        intake: {
-          policyId,
-          accountName: c.account,
-          value: c.value,
-          days: c.days,
-          reason: c.reason,
-          claims: [],
+  let next = 0;
+  const worker = async () => {
+    while (next < cases.length) {
+      const c = cases[next++]!;
+      const v: Verdict = await decide(
+        { ...ctx, db },
+        {
+          principal: { kind: 'agent', id: AGENT_FOR[policyId] },
+          intake: {
+            policyId,
+            accountName: c.account,
+            value: c.value,
+            days: c.days,
+            reason: c.reason,
+            claims: [],
+          },
+          dryRun: true,
         },
-        dryRun: true,
-      },
-    );
-    if (v.outcome === 'approved' || v.outcome === 'counter') auto++;
-  }
+      );
+      if (v.outcome === 'approved' || v.outcome === 'counter') auto++;
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
   return cases.length ? Math.round((auto / cases.length) * 1000) / 10 : 0;
 }
 

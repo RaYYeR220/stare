@@ -61,6 +61,17 @@ describe('forget with proof', () => {
     expect(control.checks.find((c) => c.id === 'C4')!.pass).toBe(true);
   });
 
+  it('a first name shared with other contacts neither blocks the certificate nor touches them', async () => {
+    const ctx = await ctxOn(base);
+    const first = (n: string) => n.split(' ')[0]!;
+    const subjectRow = nw.contacts.find((c) => c.id !== subject() && nw.contacts.some((o) => o.id !== c.id && first(o.name) === first(c.name)))!;
+    const namesake = nw.contacts.find((o) => o.id !== subjectRow.id && first(o.name) === first(subjectRow.name))!;
+    const cert = (await eraseSubject(ctx, subjectRow.id))!;
+    expect(cert.checks.filter((c) => !c.pass)).toEqual([]);
+    const [other] = await ctx.db.ro<{ name: string }>('MATCH (k:Contact {id:$id}) RETURN k.name AS name', { id: namesake.id });
+    expect(other!.name).toBe(namesake.name);
+  });
+
   it('a tampered certificate does not verify', async () => {
     const ctx = await ctxOn(base);
     const cert = (await eraseSubject(ctx, subject()))!;

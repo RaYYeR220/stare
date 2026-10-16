@@ -137,6 +137,7 @@ export class VeniceLlm implements Llm {
           role: 'system',
           content:
             'Write two or three plain sentences for a support lead explaining a decision. Use only the facts given. ' +
+            'Name the outcome exactly: approved, counter-offer (offering less than asked), escalated, or denied. ' +
             `Mention no person, company, amount or date that is not in the facts. Allowed names: ${allowed.join(', ')}. No preamble, no lists.`,
         },
         { role: 'user', content: JSON.stringify(facts) },

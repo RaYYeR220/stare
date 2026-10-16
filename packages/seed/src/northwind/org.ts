@@ -567,9 +567,13 @@ export function buildAccounts(rng: Rng): { accounts: AccountRow[]; owns: OwnsRow
     owns.push({ person: owner, account: id, validFrom: START, validTo: FOREVER });
     const n = tier === 'standard' ? 1 : 2;
     for (let k = 0; k < n; k++) {
-      const fullName =
+      let fullName =
         name === 'Acme Logistics' && k === 0 ? 'Marta Lindqvist' : `${rng.pick(FIRST)} ${rng.pick(LAST)}`;
       rng.int(0, 99); // keeps the generator's stream (and so the whole history) stable
+      // Two different people never share a full name here: erasure by name would be ambiguous.
+      const [first, last] = fullName.split(' ');
+      for (let m = 0; contacts.some((c) => c.name === fullName); m++)
+        fullName = `${first} ${'BCDFGHJKLMNPRSTVW'[m]}. ${last}`;
       contacts.push({
         id: `c-${id.slice(4)}-${k + 1}`,
         name: fullName,

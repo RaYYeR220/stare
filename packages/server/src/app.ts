@@ -11,7 +11,7 @@ export function buildApp(rt: Runtime, opts: { allowedOrigins?: string[] } = {}) 
   app.use(
     '/api/*',
     cors({
-      origin: opts.allowedOrigins?.length ? opts.allowedOrigins : '*',
+      origin: opts.allowedOrigins?.length && !opts.allowedOrigins.includes('*') ? opts.allowedOrigins : '*',
       allowHeaders: ['authorization', 'content-type'],
       allowMethods: ['GET', 'POST', 'OPTIONS'],
     }),
