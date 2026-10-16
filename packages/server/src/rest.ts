@@ -247,6 +247,16 @@ export function restApi(rt: Runtime) {
     return c.json(await recall(ctx.db, ctx.embedder, { query: c.req.query('q') ?? 'recent requests', account: c.req.query('account') ?? null }));
   });
 
+  /**
+   * The read-only auditor: FalkorDB's own MCP server, bound to an ACL user that may only GRAPH.RO_QUERY
+   * the shared Northwind graph. Handed to desk holders so they can try raw Cypher against the isolation.
+   */
+  app.get('/auditor', (c) =>
+    process.env.STARE_AUDITOR_KEY
+      ? c.json({ url: `${rt.cfg.publicUrl}/auditor/mcp`, key: process.env.STARE_AUDITOR_KEY, graph: 'stare:northwind', user: 'auditor', allowed: ['GRAPH.RO_QUERY on stare:northwind'] })
+      : c.json({ error: 'no auditor on this deployment' }, 404),
+  );
+
   /** A bearer token for an MCP client, bound to this desk and one principal. */
   app.post('/mcp-token', async (c) => {
     const b = await body(c);
