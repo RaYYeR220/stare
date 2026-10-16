@@ -18,8 +18,7 @@ interface Answer {
   ms: number;
 }
 
-const DIRECTORY = nw.accounts.map((a) => `${a.name} — ${a.tier}${a.status === 'collections' ? ', IN COLLECTIONS' : ''}`).join('
-');
+const DIRECTORY = nw.accounts.map((a) => `${a.name} — ${a.tier}${a.status === 'collections' ? ', IN COLLECTIONS' : ''}`).join('\n');
 const POLICY_TEXT = nw.versions.filter((v) => v.effectiveFrom <= NOW && NOW < v.effectiveTo).map((v) => v.text).join('\n\n');
 const DELEGATION = 'You act as the company agent for this request. You may grant exceptions yourself only up to: refunds $2,000; discounts 20% off list; payment terms Net-45. Above that, or when you are unsure the exception is justified, escalate to a human.';
 const RULES = `Decide a business exception request at Northwind Cloud.
