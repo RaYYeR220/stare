@@ -4,8 +4,8 @@
 
 Stare is a precedent desk for AI agents, built on [FalkorDB](https://www.falkordb.com/). Support, renewals and billing agents at a B2B software company get requests for business exceptions: a refund outside the window, a discount above list, payment terms beyond Net-30. An agent may grant one only when it stands on precedent that is still good law. That means a past exception granted by someone who had the authority at the time, not overturned since, not contradicted by the policy now in force, and not itself resting on a precedent that fails any of those tests. The check runs inside the database, deterministically. The language model never decides.
 
-- **Live desk:** https://34.52.191.115.sslip.io. Open a private copy of the demo company. No sign-up and no keys needed.
-- **MCP endpoint:** `https://34.52.191.115.sslip.io/mcp` (spec 2026-07-28). The desk gives you a token in **Connect**.
+- **Live desk:** https://stare-desk.vercel.app. Open a private copy of the demo company. No sign-up and no keys needed. [Five-minute review path](JUDGES.md).
+- **API and MCP endpoint:** `https://34.52.191.115.sslip.io/mcp` (spec 2026-07-28). The desk gives you a token in **Connect**.
 - **Tracks:** Agents That Act on Connected Data · Agent Memory and Coordination · Company Brain.
 
 ---
@@ -37,7 +37,7 @@ The most similar past decision is the one that rests on an unauthorized approval
 
 The baselines are stochastic: an earlier run on the same sealed key gave 71/112 ($11,100) and 63/112 ($20,550), kept in [`results/history`](packages/eval/results/history). Stare scored 112/112 in all six runs. That is by construction: it executes the same rules the key encodes, and the only stochastic part is the model that turns a message into fields. The baselines are the point. On "a precedent that looks right but rests on an unauthorized approval", vector RAG scored **0/8** in both runs. On superseded policy, retrieval made things *worse* than no retrieval (6–7/12 vs 11–12/12), because old precedents pull towards old rules. Full report: [`packages/eval/results/report.md`](packages/eval/results/report.md).
 
-**Tests.** `pnpm test` runs 95 tests against a real FalkorDB. Among them:
+**Tests.** `pnpm test` runs 96 tests against a real FalkorDB. Among them:
 - the database UDF and an independent TypeScript re-implementation agree on the good-law flag of every seeded decision;
 - 64 concurrent requests from three agents on 16 connections never overspend the shared budget, never decide a case twice, and never fork the ledger;
 - a sandbox's ACL user gets FalkorDB's own `NOPERM` on every other graph, and the refusal shows up in `ACL LOG`;
@@ -142,7 +142,7 @@ Without `VENICE_API_KEY` the desk still runs: requests are parsed by a determini
 ```sh
 pnpm install
 pnpm db:test                 # FalkorDB v4.22.1 on 127.0.0.1:6390
-pnpm test                    # 95 tests
+pnpm test                    # 96 tests
 pnpm --filter @stare/server start   # seeds the tenants on first boot, serves :8787
 pnpm --filter @stare/web dev        # the desk on :3000
 pnpm docs                    # regenerate docs/queries.md
