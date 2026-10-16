@@ -6,6 +6,7 @@ Stare is a precedent desk for AI agents, built on [FalkorDB](https://www.falkord
 
 - **Live desk:** https://stare-desk.vercel.app. Open a private copy of the demo company. No sign-up and no keys needed. [Five-minute review path](JUDGES.md).
 - **API and MCP endpoint:** `https://34.52.191.115.sslip.io/mcp` (spec 2026-07-28). The desk gives you a token in **Connect**.
+- **Demo video (3 min):** https://youtu.be/cfgcYPSNToY
 - **Tracks:** Agents That Act on Connected Data · Agent Memory and Coordination · Company Brain.
 
 ---
