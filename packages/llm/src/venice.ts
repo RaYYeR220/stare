@@ -63,8 +63,13 @@ export class VeniceClient {
         if (!res.ok) {
           const text = await res.text();
           // Some models only run with reasoning on; retry the same request without disabling it.
-          if (res.status === 400 && /thinking-only/i.test(text) && (body as { venice_parameters?: Record<string, unknown> }).venice_parameters?.disable_thinking) {
-            (body as { venice_parameters: Record<string, unknown> }).venice_parameters.disable_thinking = false;
+          if (
+            res.status === 400 &&
+            /thinking-only/i.test(text) &&
+            (body as { venice_parameters?: Record<string, unknown> }).venice_parameters?.disable_thinking
+          ) {
+            (body as { venice_parameters: Record<string, unknown> }).venice_parameters.disable_thinking =
+              false;
             continue;
           }
           throw new Error(`Venice ${res.status}: ${text.slice(0, 300)}`);
@@ -87,9 +92,17 @@ export class VeniceClient {
       messages,
       temperature: o.temperature ?? 0,
       max_completion_tokens: o.maxTokens ?? 800,
-      venice_parameters: { include_venice_system_prompt: false, disable_thinking: true, strip_thinking_response: true },
+      venice_parameters: {
+        include_venice_system_prompt: false,
+        disable_thinking: true,
+        strip_thinking_response: true,
+      },
     };
-    if (o.schema) body.response_format = { type: 'json_schema', json_schema: { name: o.schema.name, strict: true, schema: o.schema.schema } };
+    if (o.schema)
+      body.response_format = {
+        type: 'json_schema',
+        json_schema: { name: o.schema.name, strict: true, schema: o.schema.schema },
+      };
     if (o.tools?.length) {
       body.tools = o.tools;
       body.tool_choice = 'auto';

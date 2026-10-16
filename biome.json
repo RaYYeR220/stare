@@ -1,7 +1,47 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
-  "files": { "includes": ["**", "!**/node_modules", "!**/.next", "!**/dist", "!**/data/*.json"] },
-  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 110 },
-  "javascript": { "formatter": { "quoteStyle": "single", "semicolons": "always" } },
-  "linter": { "rules": { "recommended": true, "style": { "noNonNullAssertion": "off" }, "suspicious": { "noExplicitAny": "off" } } }
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/data/*.json",
+      "!**/eval/cases",
+      "!**/eval/results",
+      "!apps/web"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 110
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always"
+    }
+  },
+  "linter": {
+    "rules": {
+      "recommended": true,
+      "style": {
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "packages/core/src/udf/stare.js"
+      ],
+      "linter": {
+        "enabled": false
+      }
+    }
+  ]
 }

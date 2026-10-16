@@ -14,7 +14,11 @@ function appBundle(): string {
   let src = readFileSync(join(pkg, 'dist/src/app-with-deps.js'), 'utf8');
   const m = src.match(/export\s*\{([^}]*)\}\s*;?\s*$/);
   if (!m) throw new Error('unexpected ext-apps bundle shape');
-  const alias = m[1]!.split(',').map((s) => s.trim()).find((s) => /\sas\s+App$/.test(s))?.split(/\s+as\s+/)[0];
+  const alias = m[1]!
+    .split(',')
+    .map((s) => s.trim())
+    .find((s) => /\sas\s+App$/.test(s))
+    ?.split(/\s+as\s+/)[0];
   if (!alias) throw new Error('App export not found in ext-apps bundle');
   src = `${src.slice(0, m.index)}\nconst McpApp = ${alias};`;
   bundle = src;

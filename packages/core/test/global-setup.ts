@@ -14,7 +14,10 @@ export default async function setup() {
   await loadUdf(admin, true);
   await loadFlex(admin);
   const graphs = await admin.list();
-  for (const g of graphs) if (g.startsWith('stare:test')) await admin.selectGraph(g).delete();
+  for (const g of graphs)
+    if (g.startsWith('stare:test') || g.startsWith('stare:sbx:')) await admin.selectGraph(g).delete();
+  const conn = await admin.connection;
+  await conn.sendCommand(['DEL', 'stare:sandboxes', 'stare:sandbox-creds']);
   for (const dim of [4, 32]) await applySchema(new Db(admin, `stare:test-template-${dim}`), dim);
   await admin.close();
 }

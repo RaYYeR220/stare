@@ -1,14 +1,20 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { exceptionClusters, approvalBottlenecks, leadingCases, precedentFamilies } from '../src/algos.ts';
+import { approvalBottlenecks, exceptionClusters, leadingCases, precedentFamilies } from '../src/algos.ts';
 import { copyGraph } from '../src/copy.ts';
 import { connect, Db } from '../src/db.ts';
 import { ablate } from '../src/engine/ablate.ts';
 import { decide } from '../src/engine/decide.ts';
 import { acceptHandoff, handoff, handoffInbox, lastEpisode, recall, remember } from '../src/memory.ts';
 import { runRace } from '../src/race.ts';
-import { createSandbox, dropSandbox, probeIsolation, provisionTenantUser, sweepSandboxes } from '../src/tenancy.ts';
+import {
+  createSandbox,
+  dropSandbox,
+  probeIsolation,
+  provisionTenantUser,
+  sweepSandboxes,
+} from '../src/tenancy.ts';
 import { adminClient, TEST_URL } from './helpers.ts';
-import { ctxOn, inbox, northwindBase, NOW, nw } from './northwind.ts';
+import { ctxOn, inbox, NOW, northwindBase, nw } from './northwind.ts';
 
 let base: string;
 beforeAll(async () => {
@@ -92,17 +98,29 @@ describe('agent memory', () => {
   it('episodes persist across sessions, are shared across agents, and expand through the account', async () => {
     const ctx = await ctxOn(base);
     const id = await remember(ctx.db, ctx.embedder, {
-      agentId: 'a-support', sessionId: 's-1', summary: 'Acme Logistics asked for an outage refund; countered at $1,200 on Fernway Travel.', about: ['acc-acmelogistics'], now: NOW,
+      agentId: 'a-support',
+      sessionId: 's-1',
+      summary: 'Acme Logistics asked for an outage refund; countered at $1,200 on Fernway Travel.',
+      about: ['acc-acmelogistics'],
+      now: NOW,
     });
     expect((await lastEpisode(ctx.db, 'a-support'))!.id).toBe(id);
-    const items = await recall(ctx.db, ctx.embedder, { query: 'what did we do for Acme Logistics last time?', account: 'Acme Logistics' });
+    const items = await recall(ctx.db, ctx.embedder, {
+      query: 'what did we do for Acme Logistics last time?',
+      account: 'Acme Logistics',
+    });
     expect(items.some((i) => i.id === id)).toBe(true);
     expect(items.some((i) => i.kind === 'fact' && i.text.includes('credit notes'))).toBe(true);
   });
 
   it('handoffs travel between agents', async () => {
     const ctx = await ctxOn(base);
-    const id = await handoff(ctx.db, { from: 'a-support', to: 'a-renewals', note: 'They want a discount, not a refund.', now: NOW });
+    const id = await handoff(ctx.db, {
+      from: 'a-support',
+      to: 'a-renewals',
+      note: 'They want a discount, not a refund.',
+      now: NOW,
+    });
     expect((await handoffInbox(ctx.db, 'a-renewals')).map((h) => h.id)).toContain(id);
     expect(await acceptHandoff(ctx.db, id, 'a-renewals', NOW)).toBe(true);
     expect((await handoffInbox(ctx.db, 'a-renewals')).map((h) => h.id)).not.toContain(id);

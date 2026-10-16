@@ -89,9 +89,8 @@ export async function decision(db: Db, s: DecisionSpec) {
 }
 
 export async function standing(db: Db, id: string, now: number) {
-  const [row] = await db.ro<{ s: { flag: string; reasons: { code: string; detail: string; nodeId: string }[]; chain: string[] } }>(
-    'MATCH (x:Decision {id:$id}) RETURN stare.standing(x, $now) AS s',
-    { id, now },
-  );
+  const [row] = await db.ro<{
+    s: { flag: string; reasons: { code: string; detail: string; nodeId: string }[]; chain: string[] };
+  }>('MATCH (x:Decision {id:$id}) RETURN stare.standing(x, $now) AS s', { id, now });
   return row!.s;
 }

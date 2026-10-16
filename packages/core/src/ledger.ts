@@ -30,9 +30,20 @@ export type LedgerParams = {
 };
 
 /** Parameters for an append; the payload must already be free of personal data (commitments only). */
-export function ledgerParams(kind: LedgerKind, refId: string, at: number, payload: Record<string, unknown>): LedgerParams {
+export function ledgerParams(
+  kind: LedgerKind,
+  refId: string,
+  at: number,
+  payload: Record<string, unknown>,
+): LedgerParams {
   const body = canonicalJson({ kind, refId, at, ...payload });
-  return { ledgerKind: kind, ledgerRefId: refId, ledgerPayload: body, ledgerPayloadHash: sha256Hex(body), ledgerAt: at };
+  return {
+    ledgerKind: kind,
+    ledgerRefId: refId,
+    ledgerPayload: body,
+    ledgerPayloadHash: sha256Hex(body),
+    ledgerAt: at,
+  };
 }
 
 /**
@@ -57,7 +68,15 @@ SET lh.seq = lh.seq + 1, lh.hash = __nh`;
 }
 
 /** Fields of a decision the ledger commits to. Verification compares them with the live node. */
-export const DECISION_LEDGER_FIELDS = ['caseId', 'outcome', 'value', 'basis', 'policyVersionId', 'madeBy', 'at'] as const;
+export const DECISION_LEDGER_FIELDS = [
+  'caseId',
+  'outcome',
+  'value',
+  'basis',
+  'policyVersionId',
+  'madeBy',
+  'at',
+] as const;
 
 export const Q_LEDGER_INIT: NamedQuery = {
   name: 'ledger.init',
@@ -114,7 +133,15 @@ export interface LedgerVerdict {
  */
 export async function verifyLedger(db: Db, opts: { deep?: boolean } = {}): Promise<LedgerVerdict> {
   const [row] = await db.ro<{
-    entries: { seq: number; kind: string; refId: string; payload: string; payloadHash: string; prev: string; hash: string }[];
+    entries: {
+      seq: number;
+      kind: string;
+      refId: string;
+      payload: string;
+      payloadHash: string;
+      prev: string;
+      hash: string;
+    }[];
     headSeq: number | null;
     headHash: string | null;
   }>(Q_LEDGER_ENTRIES);
@@ -122,7 +149,13 @@ export async function verifyLedger(db: Db, opts: { deep?: boolean } = {}): Promi
   let prev = GENESIS;
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i]!;
-    const fail = (reason: string): LedgerVerdict => ({ ok: false, length: entries.length, head: prev, brokenAt: e.seq, reason });
+    const fail = (reason: string): LedgerVerdict => ({
+      ok: false,
+      length: entries.length,
+      head: prev,
+      brokenAt: e.seq,
+      reason,
+    });
     if (e.seq !== i + 1) return fail(`sequence gap: expected ${i + 1}`);
     if (e.prev !== prev) return fail('prev does not match previous hash');
     if (sha256Hex(e.payload) !== e.payloadHash) return fail('payload does not match its hash');
@@ -134,14 +167,21 @@ export async function verifyLedger(db: Db, opts: { deep?: boolean } = {}): Promi
     } catch {
       return fail('payload is not JSON');
     }
-    if (body.kind !== e.kind || body.refId !== e.refId) return fail('entry kind/refId differ from the hashed payload');
+    if (body.kind !== e.kind || body.refId !== e.refId)
+      return fail('entry kind/refId differ from the hashed payload');
     prev = e.hash;
   }
   if (row?.headSeq == null || row.headHash == null) {
     return { ok: false, length: entries.length, head: prev, brokenAt: 0, reason: 'ledger head missing' };
   }
   if (row.headSeq !== entries.length || row.headHash !== prev) {
-    return { ok: false, length: entries.length, head: prev, brokenAt: entries.length, reason: 'head does not match last entry' };
+    return {
+      ok: false,
+      length: entries.length,
+      head: prev,
+      brokenAt: entries.length,
+      reason: 'head does not match last entry',
+    };
   }
   if (!opts.deep) return { ok: true, length: entries.length, head: prev };
 
@@ -160,7 +200,8 @@ export async function verifyLedger(db: Db, opts: { deep?: boolean } = {}): Promi
       continue;
     }
     for (const f of DECISION_LEDGER_FIELDS) {
-      if (canonicalJson(c[f] ?? null) !== canonicalJson(d[f] ?? null)) mismatched.push({ id: d.id, field: f, ledger: c[f], live: d[f] });
+      if (canonicalJson(c[f] ?? null) !== canonicalJson(d[f] ?? null))
+        mismatched.push({ id: d.id, field: f, ledger: c[f], live: d[f] });
     }
   }
   const liveIds = new Set(live.map((d) => d.id));

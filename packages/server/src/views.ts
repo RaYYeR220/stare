@@ -1,6 +1,11 @@
 import type { Db, NamedQuery, Standing } from '@stare/core';
 
-const q = (name: string, doc: string, cypher: string): NamedQuery => ({ name, mode: 'ro', doc, cypher: cypher.trim() });
+const q = (name: string, doc: string, cypher: string): NamedQuery => ({
+  name,
+  mode: 'ro',
+  doc,
+  cypher: cypher.trim(),
+});
 
 /** Read models for the desk. Every one is a named query, shown in the "Cypher that ran" panel. */
 export const VIEW_QUERIES = {
@@ -16,7 +21,11 @@ OPTIONAL MATCH (lh:LedgerHead {id:'head'})
 RETURN size(ds) AS decisions, size([f IN flags WHERE f.flag = 'green']) AS green, size([f IN flags WHERE f.flag = 'yellow']) AS yellow,
        size([f IN flags WHERE f.flag = 'red']) AS red, open, lh.seq AS ledgerSeq, lh.hash AS ledgerHead`,
   ),
-  budgets: q('desk.budgets', 'Autonomy budgets in force.', `MATCH (b:Budget) WHERE b.from <= $now AND $now < b.to RETURN b.id AS id, b.policyId AS policyId, b.unit AS unit, b.cap AS cap, b.remaining AS remaining ORDER BY b.policyId`),
+  budgets: q(
+    'desk.budgets',
+    'Autonomy budgets in force.',
+    `MATCH (b:Budget) WHERE b.from <= $now AND $now < b.to RETURN b.id AS id, b.policyId AS policyId, b.unit AS unit, b.cap AS cap, b.remaining AS remaining ORDER BY b.policyId`,
+  ),
   agents: q(
     'desk.agents',
     'Each agent, its live delegations and its last episode.',
@@ -134,7 +143,11 @@ ORDER BY p.id, v.version`,
     'The most recent ledger entries.',
     `MATCH (e:LedgerEntry) RETURN e.seq AS seq, e.kind AS kind, e.refId AS refId, e.hash AS hash, e.prev AS prev, e.at AS at ORDER BY e.seq DESC LIMIT $limit`,
   ),
-  erasures: q('desk.erasures', 'Certificates of erasure issued in this graph.', `MATCH (e:Erasure {status:'complete'}) RETURN e.id AS id, e.at AS at, e.certificate AS certificate ORDER BY e.at DESC`),
+  erasures: q(
+    'desk.erasures',
+    'Certificates of erasure issued in this graph.',
+    `MATCH (e:Erasure {status:'complete'}) RETURN e.id AS id, e.at AS at, e.certificate AS certificate ORDER BY e.at DESC`,
+  ),
 } as const;
 
 export interface ChainLink {
@@ -148,7 +161,10 @@ export interface ChainLink {
 }
 
 export async function decisionView(db: Db, id: string, now: number) {
-  const [d] = await db.ro<Record<string, unknown> & { standing: Standing }>(VIEW_QUERIES.decision, { id, now });
+  const [d] = await db.ro<Record<string, unknown> & { standing: Standing }>(VIEW_QUERIES.decision, {
+    id,
+    now,
+  });
   if (!d) return null;
   const chain = await db.ro<ChainLink>(VIEW_QUERIES.citations, { id, now });
   const ids = [id, ...chain.map((c) => c.to)];

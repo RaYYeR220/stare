@@ -1,9 +1,24 @@
 import { FOREVER } from '@stare/core';
-import { Rng } from '../rng.ts';
 import type {
-  AccountRow, AgentRow, ClauseRow, ContactRow, DelegationRow, GrantRow, HoldsRow, IncidentRow, MemberRow, OwnsRow,
-  PersonRow, PolicyRow, ReportsRow, RoleRow, TeamRow, Tier, VersionRow,
+  AccountRow,
+  AgentRow,
+  ClauseRow,
+  ContactRow,
+  DelegationRow,
+  GrantRow,
+  HoldsRow,
+  IncidentRow,
+  MemberRow,
+  OwnsRow,
+  PersonRow,
+  PolicyRow,
+  ReportsRow,
+  RoleRow,
+  TeamRow,
+  Tier,
+  VersionRow,
 } from '../model.ts';
+import type { Rng } from '../rng.ts';
 
 /** Noon UTC on a calendar day. */
 export const D = (y: number, m: number, d: number) => Date.UTC(y, m - 1, d, 12);
@@ -85,7 +100,12 @@ export const people: PersonRow[] = P_ROWS.map(([id, name, title, team, joinedAt,
   leftAt: leftAt ?? FOREVER,
 }));
 
-export const members: MemberRow[] = people.map((p) => ({ person: p.id, team: p.team, validFrom: p.joinedAt, validTo: p.leftAt }));
+export const members: MemberRow[] = people.map((p) => ({
+  person: p.id,
+  team: p.team,
+  validFrom: p.joinedAt,
+  validTo: p.leftAt,
+}));
 
 export const roles: RoleRow[] = [
   { id: 'r-support-specialist', name: 'Support Specialist' },
@@ -125,7 +145,12 @@ export const grants: GrantRow[] = [
   { role: 'r-ceo', policy: 'payment_terms', cap: 120, ...iv() },
 ];
 
-const H = (person: string, role: string, validFrom = START, validTo = FOREVER): HoldsRow => ({ person, role, validFrom, validTo });
+const H = (person: string, role: string, validFrom = START, validTo = FOREVER): HoldsRow => ({
+  person,
+  role,
+  validFrom,
+  validTo,
+});
 const personById = new Map(people.map((p) => [p.id, p]));
 export const holds: HoldsRow[] = [
   H('p-maya', 'r-ceo'),
@@ -139,18 +164,27 @@ export const holds: HoldsRow[] = [
   H('p-kofi', 'r-support-lead'),
   H('p-sofia', 'r-support-specialist', START, D(2025, 9, 15)),
   H('p-sofia', 'r-support-lead', D(2025, 9, 15)),
-  ...['p-jordan', 'p-lina', 'p-tom', 'p-yuki', 'p-omar', 'p-ines'].map((p) => H(p, 'r-support-specialist', personById.get(p)!.joinedAt)),
+  ...['p-jordan', 'p-lina', 'p-tom', 'p-yuki', 'p-omar', 'p-ines'].map((p) =>
+    H(p, 'r-support-specialist', personById.get(p)!.joinedAt),
+  ),
   H('p-marcus', 'r-renewals-director'),
   H('p-rachel', 'r-renewals-manager'),
   H('p-ethan', 'r-account-exec', START, D(2026, 1, 1)),
   H('p-ethan', 'r-renewals-manager', D(2026, 1, 1)),
-  ...['p-hana', 'p-luis', 'p-noah', 'p-amara', 'p-felix', 'p-zoe', 'p-ravi'].map((p) => H(p, 'r-account-exec', personById.get(p)!.joinedAt)),
+  ...['p-hana', 'p-luis', 'p-noah', 'p-amara', 'p-felix', 'p-zoe', 'p-ravi'].map((p) =>
+    H(p, 'r-account-exec', personById.get(p)!.joinedAt),
+  ),
   H('p-grace', 'r-ar-manager'),
   H('p-ben', 'r-billing'),
   H('p-mila', 'r-billing'),
 ];
 
-const R = (person: string, manager: string, validFrom = START, validTo = FOREVER): ReportsRow => ({ person, manager, validFrom, validTo });
+const R = (person: string, manager: string, validFrom = START, validTo = FOREVER): ReportsRow => ({
+  person,
+  manager,
+  validFrom,
+  validTo,
+});
 export const reports: ReportsRow[] = [
   R('p-daniel', 'p-maya'),
   R('p-victor', 'p-maya', START, D(2026, 8, 29)),
@@ -179,7 +213,9 @@ export const reports: ReportsRow[] = [
   R('p-ethan', 'p-marcus'),
   R('p-amara', 'p-rachel'),
   R('p-zoe', 'p-rachel'),
-  ...['p-hana', 'p-luis', 'p-noah', 'p-felix', 'p-ravi', 'p-sasha'].map((p) => R(p, 'p-dana', personById.get(p)!.joinedAt)),
+  ...['p-hana', 'p-luis', 'p-noah', 'p-felix', 'p-ravi', 'p-sasha'].map((p) =>
+    R(p, 'p-dana', personById.get(p)!.joinedAt),
+  ),
   R('p-claire', 'p-leah'),
   R('p-sean', 'p-maya'),
   R('p-erik', 'p-sean'),
@@ -193,16 +229,63 @@ export const reports: ReportsRow[] = [
 export const AGENTS_LIVE = D(2026, 4, 1);
 export const agents: AgentRow[] = [
   { id: 'a-support', name: 'Support agent', kind: 'support', policyId: 'refunds', deployedAt: AGENTS_LIVE },
-  { id: 'a-renewals', name: 'Renewals agent', kind: 'renewals', policyId: 'discounts', deployedAt: AGENTS_LIVE },
-  { id: 'a-billing', name: 'Billing agent', kind: 'billing', policyId: 'payment_terms', deployedAt: AGENTS_LIVE },
+  {
+    id: 'a-renewals',
+    name: 'Renewals agent',
+    kind: 'renewals',
+    policyId: 'discounts',
+    deployedAt: AGENTS_LIVE,
+  },
+  {
+    id: 'a-billing',
+    name: 'Billing agent',
+    kind: 'billing',
+    policyId: 'payment_terms',
+    deployedAt: AGENTS_LIVE,
+  },
 ];
 
 export const delegations: DelegationRow[] = [
-  { person: 'p-ana', agent: 'a-support', policyId: 'refunds', cap: 1000, validFrom: AGENTS_LIVE, validTo: FOREVER },
-  { person: 'p-victor', agent: 'a-support', policyId: 'refunds', cap: 2500, validFrom: AGENTS_LIVE, validTo: D(2026, 8, 29) },
-  { person: 'p-priya', agent: 'a-support', policyId: 'refunds', cap: 2000, validFrom: D(2026, 9, 2), validTo: FOREVER },
-  { person: 'p-marcus', agent: 'a-renewals', policyId: 'discounts', cap: 20, validFrom: AGENTS_LIVE, validTo: FOREVER },
-  { person: 'p-grace', agent: 'a-billing', policyId: 'payment_terms', cap: 45, validFrom: AGENTS_LIVE, validTo: FOREVER },
+  {
+    person: 'p-ana',
+    agent: 'a-support',
+    policyId: 'refunds',
+    cap: 1000,
+    validFrom: AGENTS_LIVE,
+    validTo: FOREVER,
+  },
+  {
+    person: 'p-victor',
+    agent: 'a-support',
+    policyId: 'refunds',
+    cap: 2500,
+    validFrom: AGENTS_LIVE,
+    validTo: D(2026, 8, 29),
+  },
+  {
+    person: 'p-priya',
+    agent: 'a-support',
+    policyId: 'refunds',
+    cap: 2000,
+    validFrom: D(2026, 9, 2),
+    validTo: FOREVER,
+  },
+  {
+    person: 'p-marcus',
+    agent: 'a-renewals',
+    policyId: 'discounts',
+    cap: 20,
+    validFrom: AGENTS_LIVE,
+    validTo: FOREVER,
+  },
+  {
+    person: 'p-grace',
+    agent: 'a-billing',
+    policyId: 'payment_terms',
+    cap: 45,
+    validFrom: AGENTS_LIVE,
+    validTo: FOREVER,
+  },
 ];
 
 // ------------------------------------------------------------------ policies
@@ -216,7 +299,14 @@ export const policies: PolicyRow[] = [
 type C = [key: string, kind: 'default' | 'limit', text: string, field: string, op: string, value: unknown];
 const vers: Array<[VersionRow, C[]]> = [
   [
-    { id: 'refunds-v1', policyId: 'refunds', version: 1, effectiveFrom: START, effectiveTo: D(2025, 7, 1), text: 'Refund Policy v1' },
+    {
+      id: 'refunds-v1',
+      policyId: 'refunds',
+      version: 1,
+      effectiveFrom: START,
+      effectiveTo: D(2025, 7, 1),
+      text: 'Refund Policy v1',
+    },
     [
       ['§4.1', 'default', 'Refunds may be issued within 30 days of the charge.', 'days', 'lte', 30],
       ['§4.2', 'default', 'Support may refund up to $500 without approval.', 'value', 'lte', 500],
@@ -226,7 +316,14 @@ const vers: Array<[VersionRow, C[]]> = [
     ],
   ],
   [
-    { id: 'refunds-v2', policyId: 'refunds', version: 2, effectiveFrom: D(2025, 7, 1), effectiveTo: D(2026, 9, 15), text: 'Refund Policy v2' },
+    {
+      id: 'refunds-v2',
+      policyId: 'refunds',
+      version: 2,
+      effectiveFrom: D(2025, 7, 1),
+      effectiveTo: D(2026, 9, 15),
+      text: 'Refund Policy v2',
+    },
     [
       ['§4.1', 'default', 'Refunds may be issued within 30 days of the charge.', 'days', 'lte', 30],
       ['§4.2', 'default', 'Support may refund up to $750 without approval.', 'value', 'lte', 750],
@@ -236,18 +333,39 @@ const vers: Array<[VersionRow, C[]]> = [
     ],
   ],
   [
-    { id: 'refunds-v3', policyId: 'refunds', version: 3, effectiveFrom: D(2026, 9, 15), effectiveTo: FOREVER, text: 'Refund Policy v3' },
+    {
+      id: 'refunds-v3',
+      policyId: 'refunds',
+      version: 3,
+      effectiveFrom: D(2026, 9, 15),
+      effectiveTo: FOREVER,
+      text: 'Refund Policy v3',
+    },
     [
       ['§4.1', 'default', 'Refunds may be issued within 30 days of the charge.', 'days', 'lte', 30],
       ['§4.2', 'default', 'Support may refund up to $750 without approval.', 'value', 'lte', 750],
       ['§4.5', 'limit', 'No refund later than 60 days after the charge.', 'days', 'lte', 60],
       ['§4.6', 'limit', 'No single refund above $7,500.', 'value', 'lte', 7500],
       ['§4.7', 'limit', 'No refunds to accounts in collections.', 'accountStatus', 'neq', 'collections'],
-      ['§4.8', 'limit', 'Goodwill is not a ground for a refund outside policy; offer service credit instead.', 'reason', 'nin', ['goodwill']],
+      [
+        '§4.8',
+        'limit',
+        'Goodwill is not a ground for a refund outside policy; offer service credit instead.',
+        'reason',
+        'nin',
+        ['goodwill'],
+      ],
     ],
   ],
   [
-    { id: 'discounts-v1', policyId: 'discounts', version: 1, effectiveFrom: START, effectiveTo: D(2026, 3, 1), text: 'Discount Policy v1' },
+    {
+      id: 'discounts-v1',
+      policyId: 'discounts',
+      version: 1,
+      effectiveFrom: START,
+      effectiveTo: D(2026, 3, 1),
+      text: 'Discount Policy v1',
+    },
     [
       ['§2.1', 'default', 'Account executives may discount up to 10% off list.', 'value', 'lte', 10],
       ['§2.4', 'limit', 'No discount above 50% off list.', 'value', 'lte', 50],
@@ -255,7 +373,14 @@ const vers: Array<[VersionRow, C[]]> = [
     ],
   ],
   [
-    { id: 'discounts-v2', policyId: 'discounts', version: 2, effectiveFrom: D(2026, 3, 1), effectiveTo: FOREVER, text: 'Discount Policy v2' },
+    {
+      id: 'discounts-v2',
+      policyId: 'discounts',
+      version: 2,
+      effectiveFrom: D(2026, 3, 1),
+      effectiveTo: FOREVER,
+      text: 'Discount Policy v2',
+    },
     [
       ['§2.1', 'default', 'Account executives may discount up to 10% off list.', 'value', 'lte', 10],
       ['§2.4', 'limit', 'No discount above 40% off list.', 'value', 'lte', 40],
@@ -263,19 +388,47 @@ const vers: Array<[VersionRow, C[]]> = [
     ],
   ],
   [
-    { id: 'payment_terms-v1', policyId: 'payment_terms', version: 1, effectiveFrom: START, effectiveTo: D(2026, 6, 1), text: 'Payment Terms Policy v1' },
+    {
+      id: 'payment_terms-v1',
+      policyId: 'payment_terms',
+      version: 1,
+      effectiveFrom: START,
+      effectiveTo: D(2026, 6, 1),
+      text: 'Payment Terms Policy v1',
+    },
     [
       ['§3.1', 'default', 'Standard terms are Net-30.', 'value', 'lte', 30],
       ['§3.3', 'limit', 'No terms beyond Net-90.', 'value', 'lte', 90],
-      ['§3.4', 'limit', 'No extended terms for accounts in collections.', 'accountStatus', 'neq', 'collections'],
+      [
+        '§3.4',
+        'limit',
+        'No extended terms for accounts in collections.',
+        'accountStatus',
+        'neq',
+        'collections',
+      ],
     ],
   ],
   [
-    { id: 'payment_terms-v2', policyId: 'payment_terms', version: 2, effectiveFrom: D(2026, 6, 1), effectiveTo: FOREVER, text: 'Payment Terms Policy v2' },
+    {
+      id: 'payment_terms-v2',
+      policyId: 'payment_terms',
+      version: 2,
+      effectiveFrom: D(2026, 6, 1),
+      effectiveTo: FOREVER,
+      text: 'Payment Terms Policy v2',
+    },
     [
       ['§3.1', 'default', 'Standard terms are Net-30.', 'value', 'lte', 30],
       ['§3.3', 'limit', 'No terms beyond Net-75.', 'value', 'lte', 75],
-      ['§3.4', 'limit', 'No extended terms for accounts in collections.', 'accountStatus', 'neq', 'collections'],
+      [
+        '§3.4',
+        'limit',
+        'No extended terms for accounts in collections.',
+        'accountStatus',
+        'neq',
+        'collections',
+      ],
     ],
   ],
 ];
@@ -298,27 +451,93 @@ export const clauses: ClauseRow[] = vers.flatMap(([v, cs]) =>
 // ------------------------------------------------------------------ accounts
 
 const ACCOUNT_NAMES = [
-  'Acme Logistics', 'Bluefin Analytics', 'Cobalt Health', 'Driftwood Studios', 'Ember Robotics', 'Fernway Travel',
-  'Glasshouse Media', 'Halcyon Media', 'Ironleaf Capital', 'Juniper Schools', 'Kestrel Foods', 'Lumen Retail',
-  'Meridian Freight', 'Northstar Robotics', 'Oakline Insurance', 'Pinecrest Clinics', 'Quarry Games', 'Redwood Legal',
-  'Saltmarsh Energy', 'Tidewater Ports', 'Umber Coffee', 'Vantage Mobility', 'Willow Pharma', 'Yarrow Biotech',
-  'Zephyr Air', 'Alder & Finch', 'Brightwater Utilities', 'Cinder Security', 'Dovetail Furniture', 'Evergreen Credit Union',
-  'Foxglove Apparel', 'Gullwing Motors', 'Harbor City Transit', 'Indigo Print', 'Jetstream Courier', 'Keystone Builders',
-  'Larkspur Hotels', 'Moraine Outdoor', 'Nimbus Weather', 'Orchid Telecom', 'Paloma Foods', 'Quill Publishing',
-  'Riverbend Dairy', 'Sable Mining', 'Thistle Insurance', 'Upland Farms', 'Verity Audit', 'Westgate Mall',
-  'Yellowfin Seafood', 'Zenith Fitness', 'Aurora Solar', 'Basalt Cloud', 'Copperline Rail', 'Dunmore Hospitals',
-  'Elmstead University', 'Falcon Ridge Wines', 'Hollow Pine Games', 'Marigold Events', 'Silverline Payroll', 'Tamarack Outfitters',
+  'Acme Logistics',
+  'Bluefin Analytics',
+  'Cobalt Health',
+  'Driftwood Studios',
+  'Ember Robotics',
+  'Fernway Travel',
+  'Glasshouse Media',
+  'Halcyon Media',
+  'Ironleaf Capital',
+  'Juniper Schools',
+  'Kestrel Foods',
+  'Lumen Retail',
+  'Meridian Freight',
+  'Northstar Robotics',
+  'Oakline Insurance',
+  'Pinecrest Clinics',
+  'Quarry Games',
+  'Redwood Legal',
+  'Saltmarsh Energy',
+  'Tidewater Ports',
+  'Umber Coffee',
+  'Vantage Mobility',
+  'Willow Pharma',
+  'Yarrow Biotech',
+  'Zephyr Air',
+  'Alder & Finch',
+  'Brightwater Utilities',
+  'Cinder Security',
+  'Dovetail Furniture',
+  'Evergreen Credit Union',
+  'Foxglove Apparel',
+  'Gullwing Motors',
+  'Harbor City Transit',
+  'Indigo Print',
+  'Jetstream Courier',
+  'Keystone Builders',
+  'Larkspur Hotels',
+  'Moraine Outdoor',
+  'Nimbus Weather',
+  'Orchid Telecom',
+  'Paloma Foods',
+  'Quill Publishing',
+  'Riverbend Dairy',
+  'Sable Mining',
+  'Thistle Insurance',
+  'Upland Farms',
+  'Verity Audit',
+  'Westgate Mall',
+  'Yellowfin Seafood',
+  'Zenith Fitness',
+  'Aurora Solar',
+  'Basalt Cloud',
+  'Copperline Rail',
+  'Dunmore Hospitals',
+  'Elmstead University',
+  'Falcon Ridge Wines',
+  'Hollow Pine Games',
+  'Marigold Events',
+  'Silverline Payroll',
+  'Tamarack Outfitters',
 ];
 const TIER_OF: Record<string, Tier> = {
-  'Acme Logistics': 'growth', 'Bluefin Analytics': 'growth', 'Halcyon Media': 'growth', 'Kestrel Foods': 'growth',
-  'Northstar Robotics': 'enterprise', 'Lumen Retail': 'growth', 'Willow Pharma': 'enterprise', 'Dunmore Hospitals': 'enterprise',
-  'Elmstead University': 'enterprise', 'Harbor City Transit': 'enterprise', 'Fernway Travel': 'growth', 'Meridian Freight': 'growth',
-  'Driftwood Studios': 'growth', 'Paloma Foods': 'enterprise', 'Quarry Games': 'growth', 'Glasshouse Media': 'growth',
+  'Acme Logistics': 'growth',
+  'Bluefin Analytics': 'growth',
+  'Halcyon Media': 'growth',
+  'Kestrel Foods': 'growth',
+  'Northstar Robotics': 'enterprise',
+  'Lumen Retail': 'growth',
+  'Willow Pharma': 'enterprise',
+  'Dunmore Hospitals': 'enterprise',
+  'Elmstead University': 'enterprise',
+  'Harbor City Transit': 'enterprise',
+  'Fernway Travel': 'growth',
+  'Meridian Freight': 'growth',
+  'Driftwood Studios': 'growth',
+  'Paloma Foods': 'enterprise',
+  'Quarry Games': 'growth',
+  'Glasshouse Media': 'growth',
 };
 const REGIONS = ['NA-East', 'NA-West', 'EU-West', 'EU-Central', 'APAC'];
 const OWNERS = ['p-hana', 'p-luis', 'p-noah', 'p-amara', 'p-felix', 'p-zoe', 'p-ravi', 'p-ethan'];
 
-const domainOf = (name: string) => `${name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z]/g, '')}.example`;
+const domainOf = (name: string) =>
+  `${name
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z]/g, '')}.example`;
 
 export function buildAccounts(rng: Rng): { accounts: AccountRow[]; owns: OwnsRow[]; contacts: ContactRow[] } {
   const accounts: AccountRow[] = [];
@@ -327,7 +546,12 @@ export function buildAccounts(rng: Rng): { accounts: AccountRow[]; owns: OwnsRow
   ACCOUNT_NAMES.forEach((name, i) => {
     const id = `acc-${domainOf(name).replace('.example', '')}`;
     const tier: Tier = TIER_OF[name] ?? (i % 5 === 0 ? 'enterprise' : i % 2 === 0 ? 'growth' : 'standard');
-    const arr = tier === 'enterprise' ? rng.round(rng.int(180, 640) * 1000, 5000) : tier === 'growth' ? rng.round(rng.int(40, 170) * 1000, 1000) : rng.round(rng.int(8, 38) * 1000, 500);
+    const arr =
+      tier === 'enterprise'
+        ? rng.round(rng.int(180, 640) * 1000, 5000)
+        : tier === 'growth'
+          ? rng.round(rng.int(40, 170) * 1000, 1000)
+          : rng.round(rng.int(8, 38) * 1000, 500);
     const status = name === 'Sable Mining' || name === 'Westgate Mall' ? 'collections' : 'active';
     accounts.push({
       id,
@@ -343,14 +567,24 @@ export function buildAccounts(rng: Rng): { accounts: AccountRow[]; owns: OwnsRow
     owns.push({ person: owner, account: id, validFrom: START, validTo: FOREVER });
     const n = tier === 'standard' ? 1 : 2;
     for (let k = 0; k < n; k++) {
-      const fullName = name === 'Acme Logistics' && k === 0 ? 'Marta Lindqvist' : `${rng.pick(FIRST)} ${rng.pick(LAST)}`;
+      const fullName =
+        name === 'Acme Logistics' && k === 0 ? 'Marta Lindqvist' : `${rng.pick(FIRST)} ${rng.pick(LAST)}`;
       rng.int(0, 99); // keeps the generator's stream (and so the whole history) stable
       contacts.push({
         id: `c-${id.slice(4)}-${k + 1}`,
         name: fullName,
         email: `${slug(fullName)}@${domainOf(name)}`,
         phone: phoneFor(contacts.length),
-        title: k === 0 ? rng.pick(['Head of Finance', 'Billing Manager', 'Procurement Lead', 'Controller', 'Operations Director']) : rng.pick(['IT Director', 'VP Operations', 'CTO', 'Head of Data']),
+        title:
+          k === 0
+            ? rng.pick([
+                'Head of Finance',
+                'Billing Manager',
+                'Procurement Lead',
+                'Controller',
+                'Operations Director',
+              ])
+            : rng.pick(['IT Director', 'VP Operations', 'CTO', 'Head of Data']),
         account: id,
       });
     }
@@ -363,8 +597,65 @@ function phoneFor(i: number): string {
   return i < 100 ? `+1-555-01${String(i).padStart(2, '0')}` : `+44 20 7946 0${String(i).padStart(3, '0')}`;
 }
 
-const FIRST = ['Elena', 'Jonas', 'Priscilla', 'Mateo', 'Aisha', 'Henrik', 'Carmen', 'Dmitri', 'Fatima', 'Graham', 'Ingrid', 'Julian', 'Keiko', 'Lorenzo', 'Nadia', 'Oscar', 'Paula', 'Rafael', 'Sienna', 'Theo', 'Ursula', 'Viktor', 'Wendy', 'Yusuf', 'Zara', 'Bruno', 'Celeste', 'Diego', 'Freya', 'Gideon'];
-const LAST = ['Andersson', 'Bianchi', 'Castillo', 'Dahl', 'Eriksen', 'Fontaine', 'Gallagher', 'Horvath', 'Ishikawa', 'Jovanovic', 'Kaur', 'Lindgren', 'Moreau', 'Nakamura', 'Oyelaran', 'Petrakis', 'Quintero', 'Rossi', 'Sato', 'Thorne', 'Ueda', 'Valdez', 'Whitaker', 'Yilmaz', 'Zielinski'];
+const FIRST = [
+  'Elena',
+  'Jonas',
+  'Priscilla',
+  'Mateo',
+  'Aisha',
+  'Henrik',
+  'Carmen',
+  'Dmitri',
+  'Fatima',
+  'Graham',
+  'Ingrid',
+  'Julian',
+  'Keiko',
+  'Lorenzo',
+  'Nadia',
+  'Oscar',
+  'Paula',
+  'Rafael',
+  'Sienna',
+  'Theo',
+  'Ursula',
+  'Viktor',
+  'Wendy',
+  'Yusuf',
+  'Zara',
+  'Bruno',
+  'Celeste',
+  'Diego',
+  'Freya',
+  'Gideon',
+];
+const LAST = [
+  'Andersson',
+  'Bianchi',
+  'Castillo',
+  'Dahl',
+  'Eriksen',
+  'Fontaine',
+  'Gallagher',
+  'Horvath',
+  'Ishikawa',
+  'Jovanovic',
+  'Kaur',
+  'Lindgren',
+  'Moreau',
+  'Nakamura',
+  'Oyelaran',
+  'Petrakis',
+  'Quintero',
+  'Rossi',
+  'Sato',
+  'Thorne',
+  'Ueda',
+  'Valdez',
+  'Whitaker',
+  'Yilmaz',
+  'Zielinski',
+];
 
 // ------------------------------------------------------------------ incidents
 
@@ -376,10 +667,45 @@ export function buildIncidents(rng: Rng, accounts: AccountRow[]): IncidentRow[] 
     return [...set];
   };
   return [
-    { id: 'inc-2025-03-11', title: 'EU-West API outage', startedAt: D(2025, 3, 11), endedAt: D(2025, 3, 11) + 9 * 3600e3, severity: 'sev1', accounts: pickN(12, ['acc-kestrelfoods']) },
-    { id: 'inc-2025-11-04', title: 'Ingest pipeline degradation', startedAt: D(2025, 11, 4), endedAt: D(2025, 11, 5) + 2 * 3600e3, severity: 'sev2', accounts: pickN(15, ['acc-bluefinanalytics', 'acc-glasshousemedia']) },
-    { id: 'inc-2026-05-20', title: 'SSO login outage', startedAt: D(2026, 5, 20), endedAt: D(2026, 5, 20) + 5 * 3600e3, severity: 'sev1', accounts: pickN(18, ['acc-northstarrobotics', 'acc-meridianfreight', 'acc-driftwoodstudios']) },
-    { id: 'inc-2026-09-04', title: 'EU-West ingest outage', startedAt: D(2026, 9, 4), endedAt: D(2026, 9, 4) + 11 * 3600e3, severity: 'sev1', accounts: pickN(14, ['acc-acmelogistics', 'acc-fernwaytravel']) },
-    { id: 'inc-2026-10-02', title: 'Duplicate charges in the October billing run', startedAt: D(2026, 10, 2), endedAt: D(2026, 10, 3), severity: 'sev2', accounts: pickN(9) },
+    {
+      id: 'inc-2025-03-11',
+      title: 'EU-West API outage',
+      startedAt: D(2025, 3, 11),
+      endedAt: D(2025, 3, 11) + 9 * 3600e3,
+      severity: 'sev1',
+      accounts: pickN(12, ['acc-kestrelfoods']),
+    },
+    {
+      id: 'inc-2025-11-04',
+      title: 'Ingest pipeline degradation',
+      startedAt: D(2025, 11, 4),
+      endedAt: D(2025, 11, 5) + 2 * 3600e3,
+      severity: 'sev2',
+      accounts: pickN(15, ['acc-bluefinanalytics', 'acc-glasshousemedia']),
+    },
+    {
+      id: 'inc-2026-05-20',
+      title: 'SSO login outage',
+      startedAt: D(2026, 5, 20),
+      endedAt: D(2026, 5, 20) + 5 * 3600e3,
+      severity: 'sev1',
+      accounts: pickN(18, ['acc-northstarrobotics', 'acc-meridianfreight', 'acc-driftwoodstudios']),
+    },
+    {
+      id: 'inc-2026-09-04',
+      title: 'EU-West ingest outage',
+      startedAt: D(2026, 9, 4),
+      endedAt: D(2026, 9, 4) + 11 * 3600e3,
+      severity: 'sev1',
+      accounts: pickN(14, ['acc-acmelogistics', 'acc-fernwaytravel']),
+    },
+    {
+      id: 'inc-2026-10-02',
+      title: 'Duplicate charges in the October billing run',
+      startedAt: D(2026, 10, 2),
+      endedAt: D(2026, 10, 3),
+      severity: 'sev2',
+      accounts: pickN(9),
+    },
   ];
 }

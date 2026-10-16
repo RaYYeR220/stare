@@ -22,34 +22,50 @@ export function templateExplanation(v: Verdict): string {
     case 'denied':
       if (v.limitViolations.length) {
         const c = v.limitViolations[0]!;
-        parts.push(`Denied ${ask} for ${acc}: policy ${v.policyVersionId} ${c.key} forbids it${c.text ? ` ("${c.text}")` : ''}.`);
+        parts.push(
+          `Denied ${ask} for ${acc}: policy ${v.policyVersionId} ${c.key} forbids it${c.text ? ` ("${c.text}")` : ''}.`,
+        );
       } else parts.push(`Denied ${ask} for ${acc}${v.refusal ? `: ${v.refusal.detail}` : ''}.`);
       break;
     case 'approved':
-      if (v.basis === 'routine') parts.push(`Approved ${ask} for ${acc}: inside the routine envelope of ${v.policyVersionId}.`);
-      else if (v.basis === 'rule') parts.push(`Approved ${ask} for ${acc} under standing rule "${v.rule?.text}".`);
+      if (v.basis === 'routine')
+        parts.push(`Approved ${ask} for ${acc}: inside the routine envelope of ${v.policyVersionId}.`);
+      else if (v.basis === 'rule')
+        parts.push(`Approved ${ask} for ${acc} under standing rule "${v.rule?.text}".`);
       else {
         const c = v.citations[0];
-        parts.push(`Approved ${ask} for ${acc} on precedent: ${c ? `${c.account} (${date(c.at)}, ${fmtValue(v.policyId, c.value)}, decided by ${c.madeBy})` : '—'} is still good law and covers this request.`);
+        parts.push(
+          `Approved ${ask} for ${acc} on precedent: ${c ? `${c.account} (${date(c.at)}, ${fmtValue(v.policyId, c.value)}, decided by ${c.madeBy})` : '—'} is still good law and covers this request.`,
+        );
       }
-      if (v.delegation) parts.push(`Authority: ${v.delegation.name}'s delegation (up to ${fmtValue(v.policyId, v.delegation.cap)}).`);
+      if (v.delegation)
+        parts.push(
+          `Authority: ${v.delegation.name}'s delegation (up to ${fmtValue(v.policyId, v.delegation.cap)}).`,
+        );
       break;
     case 'counter': {
       const c = v.citations[0];
-      parts.push(`Counter-offer for ${acc}: ${fmtValue(v.policyId, v.value)} instead of ${ask}. The strongest good-law precedent, ${c ? `${c.account} (${date(c.at)})` : '—'}, supports up to ${fmtValue(v.policyId, v.value)}.`);
+      parts.push(
+        `Counter-offer for ${acc}: ${fmtValue(v.policyId, v.value)} instead of ${ask}. The strongest good-law precedent, ${c ? `${c.account} (${date(c.at)})` : '—'}, supports up to ${fmtValue(v.policyId, v.value)}.`,
+      );
       break;
     }
     case 'escalated': {
       const why = v.refusal?.detail ?? 'no good-law precedent covers it';
       parts.push(`Escalated ${ask} for ${acc}: ${why}.`);
-      if (v.route) parts.push(`Routed to ${v.route.name} (authority up to ${fmtValue(v.policyId, v.route.cap)}${v.route.hops ? `, ${v.route.hops} reporting hop${v.route.hops > 1 ? 's' : ''} away` : ''}).`);
+      if (v.route)
+        parts.push(
+          `Routed to ${v.route.name} (authority up to ${fmtValue(v.policyId, v.route.cap)}${v.route.hops ? `, ${v.route.hops} reporting hop${v.route.hops > 1 ? 's' : ''} away` : ''}).`,
+        );
       break;
     }
   }
   const bad = v.candidates.filter((c) => c.covers && c.standing.flag !== 'green');
   if (bad.length && v.outcome !== 'denied') {
     const b = bad[0]!;
-    parts.push(`Not relied on: ${b.account} (${date(b.at)}) — ${b.standing.flag === 'red' ? 'no longer good law' : 'rests on a precedent that is no longer good law'} (${b.standing.reasons.map((r) => r.code).join(', ')}).`);
+    parts.push(
+      `Not relied on: ${b.account} (${date(b.at)}) — ${b.standing.flag === 'red' ? 'no longer good law' : 'rests on a precedent that is no longer good law'} (${b.standing.reasons.map((r) => r.code).join(', ')}).`,
+    );
   }
   if (v.ignoredClaims.length) parts.push(`Ignored unverifiable claim: "${v.ignoredClaims[0]}".`);
   return parts.join(' ');
@@ -74,16 +90,59 @@ export function allowedMentions(v: Verdict, extra: string[] = []): string[] {
 }
 
 const STOP = new Set([
-  'Approved', 'Denied', 'Escalated', 'Counter', 'Routed', 'Authority', 'The', 'This', 'No', 'Not', 'Policy', 'Refund', 'Discount',
-  'Payment', 'Terms', 'Net', 'Ignored', 'Standing', 'Under', 'Because', 'However', 'It', 'A', 'An', 'Good', 'Law', 'Overruling', 'Risk',
-  'Support', 'Renewals', 'Billing', 'Agent', 'VP', 'CFO', 'CEO', 'Head', 'Lead', 'Customer', 'Success', 'Finance', 'Sales', 'Director',
+  'Approved',
+  'Denied',
+  'Escalated',
+  'Counter',
+  'Routed',
+  'Authority',
+  'The',
+  'This',
+  'No',
+  'Not',
+  'Policy',
+  'Refund',
+  'Discount',
+  'Payment',
+  'Terms',
+  'Net',
+  'Ignored',
+  'Standing',
+  'Under',
+  'Because',
+  'However',
+  'It',
+  'A',
+  'An',
+  'Good',
+  'Law',
+  'Overruling',
+  'Risk',
+  'Support',
+  'Renewals',
+  'Billing',
+  'Agent',
+  'VP',
+  'CFO',
+  'CEO',
+  'Head',
+  'Lead',
+  'Customer',
+  'Success',
+  'Finance',
+  'Sales',
+  'Director',
 ]);
 
 /**
  * The explanation gate: every capitalised multi-word name and every number in the text must come from
  * the verdict. If the model mentions anything else (a person, an account, an amount), its text is rejected.
  */
-export function gateExplanation(text: string, v: Verdict, allowed: string[]): { ok: boolean; offending: string[] } {
+export function gateExplanation(
+  text: string,
+  v: Verdict,
+  allowed: string[],
+): { ok: boolean; offending: string[] } {
   const offending: string[] = [];
   const allowedLower = allowed.map((a) => a.toLowerCase());
   const names = text.match(/\b[A-Z][a-zA-Z'’-]+(?:\s+(?:&\s+)?[A-Z][a-zA-Z'’-]+)+/g) ?? [];
@@ -109,7 +168,8 @@ export function gateExplanation(text: string, v: Verdict, allowed: string[]): { 
     pushNum(new Date(c.at).getUTCFullYear());
     pushNum(new Date(c.at).getUTCDate());
   }
-  for (const h of [...v.limitViolations, ...v.defaultViolations]) if (typeof h.value === 'number') pushNum(h.value);
+  for (const h of [...v.limitViolations, ...v.defaultViolations])
+    if (typeof h.value === 'number') pushNum(h.value);
   const pv = v.policyVersionId?.match(/v(\d+)/);
   if (pv) pushNum(Number(pv[1]));
   for (const m of text.matchAll(/\$?\b(\d[\d,]*(?:\.\d+)?)\b/g)) {

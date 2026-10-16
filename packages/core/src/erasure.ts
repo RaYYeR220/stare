@@ -5,7 +5,12 @@ import { Db, type NamedQuery } from './db.ts';
 import type { EngineCtx } from './engine/decide.ts';
 import { canonicalJson, LEDGER_HEAD, ledgerParams, ledgerWrite, sha256Hex, verifyLedger } from './ledger.ts';
 
-const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({ name, mode, doc, cypher: cypher.trim() });
+const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({
+  name,
+  mode,
+  doc,
+  cypher: cypher.trim(),
+});
 
 export const ERASURE_QUERIES = {
   subject: q(
@@ -69,7 +74,12 @@ RETURN n.id AS id, labels(n)[0] AS label, txt AS text, n.embedding AS embedding`
     'Open the erasure record (the tombstone that decisions stay grounded in).',
     `CREATE (e:Erasure {id:$id, at:$now, status:'running', subjectCommitment:$commitment}) RETURN e.id AS id`,
   ),
-  deleteFacts: q('erasure.deleteFacts', 'rw', 'Delete facts left with no independent support.', `MATCH (f:Fact) WHERE f.id IN $ids DETACH DELETE f`),
+  deleteFacts: q(
+    'erasure.deleteFacts',
+    'rw',
+    'Delete facts left with no independent support.',
+    `MATCH (f:Fact) WHERE f.id IN $ids DETACH DELETE f`,
+  ),
   rewrite: q(
     'erasure.rewrite',
     'rw',
@@ -188,19 +198,30 @@ export function redact(text: string, terms: string[]): string {
 
 function termsOf(s: { name: string; email: string; phone: string }): string[] {
   const parts = s.name.split(/\s+/).filter((p) => p.length >= 4);
-  return [...new Set([s.name, s.email, s.phone, s.email.split('@')[0]!, ...parts])].filter((t) => t && t.length >= 3);
+  return [...new Set([s.name, s.email, s.phone, s.email.split('@')[0]!, ...parts])].filter(
+    (t) => t && t.length >= 3,
+  );
 }
 
 /** The four checks of the certificate. The same function judges the real erasure and the naive control. */
-export async function audit(db: Db, snap: Snapshot): Promise<{ checks: Check[]; ledger: { ok: boolean; length: number; head: string } }> {
-  const [scan] = await db.ro<{ hits: { label: string; id: string; key: string; term: string }[] }>(ERASURE_QUERIES.scan, { terms: snap.terms });
+export async function audit(
+  db: Db,
+  snap: Snapshot,
+): Promise<{ checks: Check[]; ledger: { ok: boolean; length: number; head: string } }> {
+  const [scan] = await db.ro<{ hits: { label: string; id: string; key: string; term: string }[] }>(
+    ERASURE_QUERIES.scan,
+    { terms: snap.terms },
+  );
   const hits = scan?.hits ?? [];
   const [idScan] = await db.ro<{ hits: unknown[] }>(ERASURE_QUERIES.scan, { terms: [snap.contactId] });
   const [left] = await db.ro<{ n: number }>(ERASURE_QUERIES.leftovers, { contactId: snap.contactId });
   let closest = Number.POSITIVE_INFINITY;
   let survivors = 0;
   for (const v of snap.vectors) {
-    const [hit] = await db.ro<{ id: string; score: number }>(ERASURE_QUERIES.knn, { label: v.label, vec: v.vec });
+    const [hit] = await db.ro<{ id: string; score: number }>(ERASURE_QUERIES.knn, {
+      label: v.label,
+      vec: v.vec,
+    });
     if (!hit) continue;
     closest = Math.min(closest, hit.score);
     if (hit.score <= 0.02) survivors++;
@@ -208,19 +229,32 @@ export async function audit(db: Db, snap: Snapshot): Promise<{ checks: Check[]; 
   const ledger = await verifyLedger(db, { deep: true });
   const checks: Check[] = [
     {
-      id: 'C1', name: 'No property anywhere contains an identifier of the subject', pass: hits.length === 0,
-      detail: hits.length ? `${hits.length} hit(s), e.g. ${hits.slice(0, 3).map((h) => `${h.label}.${h.key}`).join(', ')}` : `scanned every label and relationship type for ${snap.terms.length} identifiers`,
+      id: 'C1',
+      name: 'No property anywhere contains an identifier of the subject',
+      pass: hits.length === 0,
+      detail: hits.length
+        ? `${hits.length} hit(s), e.g. ${hits
+            .slice(0, 3)
+            .map((h) => `${h.label}.${h.key}`)
+            .join(', ')}`
+        : `scanned every label and relationship type for ${snap.terms.length} identifiers`,
     },
     {
-      id: 'C2', name: 'The subject and their salt are gone; nothing references their id', pass: (left?.n ?? 0) === 0 && (idScan?.hits.length ?? 0) === 0,
+      id: 'C2',
+      name: 'The subject and their salt are gone; nothing references their id',
+      pass: (left?.n ?? 0) === 0 && (idScan?.hits.length ?? 0) === 0,
       detail: `${left?.n ?? 0} node(s) keyed by the subject, ${idScan?.hits.length ?? 0} reference(s) to the id`,
     },
     {
-      id: 'C3', name: 'No stored vector equals a vector that encoded the subject', pass: survivors === 0,
+      id: 'C3',
+      name: 'No stored vector equals a vector that encoded the subject',
+      pass: survivors === 0,
       detail: `${snap.vectors.length} pre-erasure vectors probed; ${survivors} still present${Number.isFinite(closest) ? `; closest distance ${closest.toFixed(3)}` : ''}`,
     },
     {
-      id: 'C4', name: 'The hash-chained ledger still verifies end to end (crypto-shredding, no rewrite)', pass: ledger.ok,
+      id: 'C4',
+      name: 'The hash-chained ledger still verifies end to end (crypto-shredding, no rewrite)',
+      pass: ledger.ok,
       detail: ledger.ok ? `${ledger.length} entries recomputed` : `${ledger.reason}`,
     },
   ];
@@ -228,19 +262,46 @@ export async function audit(db: Db, snap: Snapshot): Promise<{ checks: Check[]; 
 }
 
 async function snapshot(ctx: EngineCtx, contactId: string) {
-  const [s] = await ctx.db.ro<{ name: string; email: string; phone: string; salt: string | null; account: string }>(ERASURE_QUERIES.subject, { contactId });
+  const [s] = await ctx.db.ro<{
+    name: string;
+    email: string;
+    phone: string;
+    salt: string | null;
+    account: string;
+  }>(ERASURE_QUERIES.subject, { contactId });
   if (!s) return null;
   const terms = termsOf(s);
-  const spans = await ctx.db.ro<{ id: string; embedding: number[] }>(ERASURE_QUERIES.affectedSpans, { contactId, terms });
+  const spans = await ctx.db.ro<{ id: string; embedding: number[] }>(ERASURE_QUERIES.affectedSpans, {
+    contactId,
+    terms,
+  });
   const spanIds = spans.map((x) => x.id);
-  const facts = await ctx.db.ro<{ id: string; text: string; embedding: number[]; support: string[] }>(ERASURE_QUERIES.facts, { spanIds });
-  const touched = await ctx.db.ro<{ id: string; label: string; text: string | null; embedding: number[] | null }>(ERASURE_QUERIES.touched, { spanIds, terms });
+  const facts = await ctx.db.ro<{ id: string; text: string; embedding: number[]; support: string[] }>(
+    ERASURE_QUERIES.facts,
+    { spanIds },
+  );
+  const touched = await ctx.db.ro<{
+    id: string;
+    label: string;
+    text: string | null;
+    embedding: number[] | null;
+  }>(ERASURE_QUERIES.touched, { spanIds, terms });
   const vectors = [
     ...spans.filter((x) => x.embedding).map((x) => ({ label: 'Span', vec: x.embedding })),
-    ...touched.filter((x) => x.embedding && x.text && redact(x.text, terms) !== x.text).map((x) => ({ label: x.label, vec: x.embedding! })),
+    ...touched
+      .filter((x) => x.embedding && x.text && redact(x.text, terms) !== x.text)
+      .map((x) => ({ label: x.label, vec: x.embedding! })),
   ];
   const commitment = s.salt ? sha256Hex(`${s.salt}|${contactId}`) : sha256Hex(`unsalted|${contactId}`);
-  return { subject: s, terms, spanIds, facts, touched, snap: { contactId, terms, vectors } as Snapshot, commitment };
+  return {
+    subject: s,
+    terms,
+    spanIds,
+    facts,
+    touched,
+    snap: { contactId, terms, vectors } as Snapshot,
+    commitment,
+  };
 }
 
 export function certificateHash(c: Omit<Certificate, 'certificateHash'>): string {
@@ -269,12 +330,19 @@ export async function eraseSubject(ctx: EngineCtx, contactId: string): Promise<C
   const retained = pre.facts.filter((f) => f.support.length > 0);
   await ctx.db.rw(ERASURE_QUERIES.deleteFacts, { ids: orphans });
 
-  const rewrites = pre.touched.filter((t) => !orphans.includes(t.id) && t.text && redact(t.text, pre.terms) !== t.text);
+  const rewrites = pre.touched.filter(
+    (t) => !orphans.includes(t.id) && t.text && redact(t.text, pre.terms) !== t.text,
+  );
   const texts = rewrites.map((t) => redact(t.text!, pre.terms));
   const vecs = texts.length ? await ctx.embedder.embed(texts) : [];
-  await ctx.db.rw(ERASURE_QUERIES.rewrite, { rows: rewrites.map((t, i) => ({ id: t.id, text: texts[i], vec: t.embedding ? vecs[i] : null })) });
-  const [reg] = (await ctx.db.rw<{ n: number }>(ERASURE_QUERIES.regroundDecisions, { erasureId, spanIds: pre.spanIds })).rows;
-  const [del] = (await ctx.db.rw<{ sources: number }>(ERASURE_QUERIES.deleteSpans, { spanIds: pre.spanIds })).rows;
+  await ctx.db.rw(ERASURE_QUERIES.rewrite, {
+    rows: rewrites.map((t, i) => ({ id: t.id, text: texts[i], vec: t.embedding ? vecs[i] : null })),
+  });
+  const [reg] = (
+    await ctx.db.rw<{ n: number }>(ERASURE_QUERIES.regroundDecisions, { erasureId, spanIds: pre.spanIds })
+  ).rows;
+  const [del] = (await ctx.db.rw<{ sources: number }>(ERASURE_QUERIES.deleteSpans, { spanIds: pre.spanIds }))
+    .rows;
   await ctx.db.rw(ERASURE_QUERIES.shred, { contactId });
 
   const { checks, ledger } = await audit(ctx.db, pre.snap);
@@ -299,8 +367,13 @@ export async function eraseSubject(ctx: EngineCtx, contactId: string): Promise<C
   if (cert.verdict === 'ERASED') {
     // The certificate is final once hashed; the ledger entry that records it comes next in the chain.
     await ctx.db.rw(ERASURE_QUERIES.close, {
-      erasureId, certificate: JSON.stringify(cert), certificateHash: cert.certificateHash,
-      ...ledgerParams('erasure', erasureId, now, { subjectCommitment: pre.commitment, certificateHash: cert.certificateHash }),
+      erasureId,
+      certificate: JSON.stringify(cert),
+      certificateHash: cert.certificateHash,
+      ...ledgerParams('erasure', erasureId, now, {
+        subjectCommitment: pre.commitment,
+        certificateHash: cert.certificateHash,
+      }),
     });
   }
   return cert;
@@ -310,7 +383,11 @@ export async function eraseSubject(ctx: EngineCtx, contactId: string): Promise<C
  * Negative control: what most systems call "deleting a user" — remove the contact node and nothing else —
  * run on a GRAPH.COPY and judged by the same four checks. It must fail; otherwise the checks prove nothing.
  */
-export async function naiveControl(admin: FalkorDB, ctx: EngineCtx, contactId: string): Promise<{ checks: Check[]; verdict: 'ERASED' | 'REFUSED' }> {
+export async function naiveControl(
+  admin: FalkorDB,
+  ctx: EngineCtx,
+  contactId: string,
+): Promise<{ checks: Check[]; verdict: 'ERASED' | 'REFUSED' }> {
   const pre = await snapshot(ctx, contactId);
   if (!pre) throw new Error('no such subject');
   const copy = `${ctx.db.graphName}:control:${randomBytes(4).toString('hex')}`;
@@ -321,6 +398,9 @@ export async function naiveControl(admin: FalkorDB, ctx: EngineCtx, contactId: s
     const { checks } = await audit(db, pre.snap);
     return { checks, verdict: checks.every((c) => c.pass) ? 'ERASED' : 'REFUSED' };
   } finally {
-    await admin.selectGraph(copy).delete().catch(() => {});
+    await admin
+      .selectGraph(copy)
+      .delete()
+      .catch(() => {});
   }
 }

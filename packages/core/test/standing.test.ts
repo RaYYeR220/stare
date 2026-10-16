@@ -66,14 +66,44 @@ describe('stare.standing — good law', () => {
   });
 
   it('green: decision made under the current version is never superseded by it', async () => {
-    await decision(db, { id: 'D1', at: d(120), value: 900, madeBy: 'ana', version: 'refunds-v3', facts: { days: 55 } });
+    await decision(db, {
+      id: 'D1',
+      at: d(120),
+      value: 900,
+      madeBy: 'ana',
+      version: 'refunds-v3',
+      facts: { days: 55 },
+    });
     expect((await standing(db, 'D1', NOW)).flag).toBe('green');
   });
 
   it('agent decision: green under live delegation; red when the delegation cap was too low', async () => {
-    await decision(db, { id: 'A1', at: d(10), value: 700, madeBy: 'support-agent', onAuthorityOf: 'ana', basis: 'precedent', facts: { days: 45 } });
-    await decision(db, { id: 'A2', at: d(10), value: 1500, madeBy: 'support-agent', onAuthorityOf: 'ana', basis: 'precedent', facts: { days: 45 } });
-    await decision(db, { id: 'A3', at: d(10), value: 300, madeBy: 'support-agent', basis: 'precedent', facts: { days: 45 } });
+    await decision(db, {
+      id: 'A1',
+      at: d(10),
+      value: 700,
+      madeBy: 'support-agent',
+      onAuthorityOf: 'ana',
+      basis: 'precedent',
+      facts: { days: 45 },
+    });
+    await decision(db, {
+      id: 'A2',
+      at: d(10),
+      value: 1500,
+      madeBy: 'support-agent',
+      onAuthorityOf: 'ana',
+      basis: 'precedent',
+      facts: { days: 45 },
+    });
+    await decision(db, {
+      id: 'A3',
+      at: d(10),
+      value: 300,
+      madeBy: 'support-agent',
+      basis: 'precedent',
+      facts: { days: 45 },
+    });
     expect((await standing(db, 'A1', NOW)).flag).toBe('green');
     const s2 = await standing(db, 'A2', NOW);
     expect(s2.flag).toBe('red');
@@ -83,8 +113,22 @@ describe('stare.standing — good law', () => {
 
   it('yellow RESTS_ON_RED transitively, with the chain to the red root', async () => {
     await decision(db, { id: 'P0', at: d(5), value: 2400, madeBy: 'ana', facts: { days: 45 } }); // red: over cap
-    await decision(db, { id: 'P1', at: d(10), value: 800, madeBy: 'ana', cites: ['P0'], facts: { days: 45 } });
-    await decision(db, { id: 'P2', at: d(20), value: 800, madeBy: 'ana', cites: ['P1'], facts: { days: 45 } });
+    await decision(db, {
+      id: 'P1',
+      at: d(10),
+      value: 800,
+      madeBy: 'ana',
+      cites: ['P0'],
+      facts: { days: 45 },
+    });
+    await decision(db, {
+      id: 'P2',
+      at: d(20),
+      value: 800,
+      madeBy: 'ana',
+      cites: ['P1'],
+      facts: { days: 45 },
+    });
     const s1 = await standing(db, 'P1', NOW);
     expect(s1).toMatchObject({ flag: 'yellow', chain: ['P0'] });
     const s2 = await standing(db, 'P2', NOW);
@@ -95,7 +139,14 @@ describe('stare.standing — good law', () => {
 
   it('terminates on citation cycles and fails closed (yellow UNVERIFIABLE, never green)', async () => {
     await decision(db, { id: 'C1', at: d(10), value: 800, madeBy: 'ana', facts: { days: 45 } });
-    await decision(db, { id: 'C2', at: d(11), value: 800, madeBy: 'ana', cites: ['C1'], facts: { days: 45 } });
+    await decision(db, {
+      id: 'C2',
+      at: d(11),
+      value: 800,
+      madeBy: 'ana',
+      cites: ['C1'],
+      facts: { days: 45 },
+    });
     await db.rw(`MATCH (a:Decision {id:'C2'}), (b:Decision {id:'C1'}) CREATE (a)-[:PRECEDENT_FOR]->(b)`);
     const s = await standing(db, 'C1', NOW);
     expect(s.flag).toBe('yellow');
@@ -105,24 +156,52 @@ describe('stare.standing — good law', () => {
   it('fails closed on a citation chain deeper than the cap', async () => {
     await decision(db, { id: 'K0', at: d(1), value: 800, madeBy: 'ana', facts: { days: 45 } });
     for (let i = 1; i <= 14; i++) {
-      await decision(db, { id: `K${i}`, at: d(1 + i), value: 800, madeBy: 'ana', cites: [`K${i - 1}`], facts: { days: 45 } });
+      await decision(db, {
+        id: `K${i}`,
+        at: d(1 + i),
+        value: 800,
+        madeBy: 'ana',
+        cites: [`K${i - 1}`],
+        facts: { days: 45 },
+      });
     }
     const s = await standing(db, 'K14', NOW);
     expect(s.flag).toBe('yellow');
   });
 
   it('a mislabelled exception (basis routine but outside the envelope) still needs authority', async () => {
-    await decision(db, { id: 'M1', at: d(10), value: 2400, madeBy: 'ana', basis: 'routine', facts: { days: 45 } });
+    await decision(db, {
+      id: 'M1',
+      at: d(10),
+      value: 2400,
+      madeBy: 'ana',
+      basis: 'routine',
+      facts: { days: 45 },
+    });
     expect((await standing(db, 'M1', NOW)).reasons[0]!.code).toBe('NO_AUTHORITY');
   });
 
   it('routine-ness is judged on the granted value, not on a value claimed in the facts JSON', async () => {
-    await decision(db, { id: 'F1', at: d(10), value: 2400, madeBy: 'ana', basis: 'routine', facts: { days: 10, value: 200 } });
+    await decision(db, {
+      id: 'F1',
+      at: d(10),
+      value: 2400,
+      madeBy: 'ana',
+      basis: 'routine',
+      facts: { days: 10, value: 200 },
+    });
     expect((await standing(db, 'F1', NOW)).reasons[0]!.code).toBe('NO_AUTHORITY');
   });
 
   it('a truly routine decision needs no approving role', async () => {
-    await decision(db, { id: 'R1', at: d(10), value: 200, madeBy: 'sam', basis: 'routine', facts: { days: 10 } });
+    await decision(db, {
+      id: 'R1',
+      at: d(10),
+      value: 200,
+      madeBy: 'sam',
+      basis: 'routine',
+      facts: { days: 10 },
+    });
     expect((await standing(db, 'R1', NOW)).flag).toBe('green');
   });
 
@@ -134,7 +213,14 @@ describe('stare.standing — good law', () => {
 
   it('standingMany flags a batch with a shared memo', async () => {
     await decision(db, { id: 'P0', at: d(5), value: 2400, madeBy: 'ana', facts: { days: 45 } });
-    await decision(db, { id: 'P1', at: d(10), value: 800, madeBy: 'ana', cites: ['P0'], facts: { days: 45 } });
+    await decision(db, {
+      id: 'P1',
+      at: d(10),
+      value: 800,
+      madeBy: 'ana',
+      cites: ['P0'],
+      facts: { days: 45 },
+    });
     const [row] = await db.ro<{ r: { id: string; flag: string }[] }>(
       'MATCH (x:Decision) WITH collect(x) AS xs RETURN stare.standingMany(xs, $now) AS r',
       { now: NOW },
@@ -146,18 +232,40 @@ describe('stare.standing — good law', () => {
 
 describe('stare.covers', () => {
   it('covers same reason, smaller-or-equal value, not-smaller tier; partial when only value exceeds', async () => {
-    await decision(db, { id: 'P', at: d(10), value: 1200, madeBy: 'ana', facts: { days: 45, tier: 'growth' } });
+    await decision(db, {
+      id: 'P',
+      at: d(10),
+      value: 1200,
+      madeBy: 'ana',
+      facts: { days: 45, tier: 'growth' },
+    });
     const run = async (facts: object) =>
-      (await db.ro<{ c: any }>(`MATCH (p:Decision {id:'P'}) RETURN stare.covers(p, $f) AS c`, { f: JSON.stringify(facts) }))[0]!.c;
+      (
+        await db.ro<{ c: any }>(`MATCH (p:Decision {id:'P'}) RETURN stare.covers(p, $f) AS c`, {
+          f: JSON.stringify(facts),
+        })
+      )[0]!.c;
     const base = { policyId: 'refunds', reason: 'outage', tier: 'growth', days: 40 };
     expect(await run({ ...base, value: 1000 })).toMatchObject({ covers: true, partial: false });
-    expect(await run({ ...base, value: 1800 })).toMatchObject({ covers: false, partial: true, maxValue: 1200 });
-    expect(await run({ ...base, value: 1000, reason: 'goodwill' })).toMatchObject({ covers: false, partial: false });
+    expect(await run({ ...base, value: 1800 })).toMatchObject({
+      covers: false,
+      partial: true,
+      maxValue: 1200,
+    });
+    expect(await run({ ...base, value: 1000, reason: 'goodwill' })).toMatchObject({
+      covers: false,
+      partial: false,
+    });
     expect(await run({ ...base, value: 1000, tier: 'standard' })).toMatchObject({ covers: false });
     expect(await run({ ...base, value: 1000, tier: 'enterprise' })).toMatchObject({ covers: true });
     expect(await run({ ...base, value: 1000, days: 60 })).toMatchObject({ covers: false });
-    expect(await run({ ...base, value: 1000, tier: 'platinum' })).toMatchObject({ covers: false, partial: false });
-    expect(await run({ policyId: 'refunds', tier: 'growth', days: 40, value: 1000 })).toMatchObject({ covers: false });
+    expect(await run({ ...base, value: 1000, tier: 'platinum' })).toMatchObject({
+      covers: false,
+      partial: false,
+    });
+    expect(await run({ policyId: 'refunds', tier: 'growth', days: 40, value: 1000 })).toMatchObject({
+      covers: false,
+    });
     expect(await run({ ...base, value: '1000' })).toMatchObject({ covers: false, partial: false });
     const { days: _drop, ...noDays } = base;
     expect(await run({ ...noDays, value: 1000 })).toMatchObject({ covers: false, partial: false });

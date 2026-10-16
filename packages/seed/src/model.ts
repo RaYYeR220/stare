@@ -17,15 +17,48 @@ export interface PersonRow {
   joinedAt: number;
   leftAt: number;
 }
-export interface TeamRow { id: string; name: string }
-export interface RoleRow { id: string; name: string }
-export interface HoldsRow extends Interval { person: string; role: string }
-export interface MemberRow extends Interval { person: string; team: string }
-export interface ReportsRow extends Interval { person: string; manager: string }
-export interface GrantRow extends Interval { role: string; policy: PolicyId; cap: number }
-export interface AgentRow { id: string; name: string; kind: 'support' | 'renewals' | 'billing'; policyId: PolicyId; deployedAt: number }
-export interface DelegationRow extends Interval { person: string; agent: string; policyId: PolicyId; cap: number }
-export interface OwnsRow extends Interval { person: string; account: string }
+export interface TeamRow {
+  id: string;
+  name: string;
+}
+export interface RoleRow {
+  id: string;
+  name: string;
+}
+export interface HoldsRow extends Interval {
+  person: string;
+  role: string;
+}
+export interface MemberRow extends Interval {
+  person: string;
+  team: string;
+}
+export interface ReportsRow extends Interval {
+  person: string;
+  manager: string;
+}
+export interface GrantRow extends Interval {
+  role: string;
+  policy: PolicyId;
+  cap: number;
+}
+export interface AgentRow {
+  id: string;
+  name: string;
+  kind: 'support' | 'renewals' | 'billing';
+  policyId: PolicyId;
+  deployedAt: number;
+}
+export interface DelegationRow extends Interval {
+  person: string;
+  agent: string;
+  policyId: PolicyId;
+  cap: number;
+}
+export interface OwnsRow extends Interval {
+  person: string;
+  account: string;
+}
 
 export interface AccountRow {
   id: string;
@@ -37,9 +70,21 @@ export interface AccountRow {
   status: 'active' | 'collections';
   renewalAt: number;
 }
-export interface ContactRow { id: string; name: string; email: string; phone: string; title: string; account: string }
+export interface ContactRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  title: string;
+  account: string;
+}
 
-export interface PolicyRow { id: PolicyId; name: string; unit: 'usd' | 'pct' | 'days'; owner: string }
+export interface PolicyRow {
+  id: PolicyId;
+  name: string;
+  unit: 'usd' | 'pct' | 'days';
+  owner: string;
+}
 export interface VersionRow {
   id: string;
   policyId: PolicyId;
@@ -66,9 +111,28 @@ export interface IncidentRow {
   accounts: string[];
 }
 
-export interface SourceRow { id: string; kind: 'slack' | 'email' | 'ticket' | 'doc'; title: string; channel: string; at: number }
-export interface SpanRow { id: string; sourceId: string; text: string; at: number; author: string; mentions: string[] }
-export interface FactRow { id: string; text: string; at: number; derivedFrom: string[]; about: string[] }
+export interface SourceRow {
+  id: string;
+  kind: 'slack' | 'email' | 'ticket' | 'doc';
+  title: string;
+  channel: string;
+  at: number;
+}
+export interface SpanRow {
+  id: string;
+  sourceId: string;
+  text: string;
+  at: number;
+  author: string;
+  mentions: string[];
+}
+export interface FactRow {
+  id: string;
+  text: string;
+  at: number;
+  derivedFrom: string[];
+  about: string[];
+}
 
 export interface CaseRow {
   id: string;
@@ -120,7 +184,16 @@ export interface EscalationRow {
   resolvedBy: string | null;
 }
 
-export interface BudgetRow { id: string; policyId: PolicyId; period: string; unit: 'usd' | 'count'; cap: number; remaining: number; from: number; to: number }
+export interface BudgetRow {
+  id: string;
+  policyId: PolicyId;
+  period: string;
+  unit: 'usd' | 'count';
+  cap: number;
+  remaining: number;
+  from: number;
+  to: number;
+}
 
 export interface RuleRow {
   id: string;
@@ -136,8 +209,23 @@ export interface RuleRow {
   text: string;
 }
 
-export interface EpisodeRow { id: string; agentId: string; sessionId: string; at: number; summary: string; about: string[] }
-export interface HandoffRow { id: string; from: string; to: string; caseId: string; note: string; at: number; status: 'open' | 'accepted' }
+export interface EpisodeRow {
+  id: string;
+  agentId: string;
+  sessionId: string;
+  at: number;
+  summary: string;
+  about: string[];
+}
+export interface HandoffRow {
+  id: string;
+  from: string;
+  to: string;
+  caseId: string;
+  note: string;
+  at: number;
+  status: 'open' | 'accepted';
+}
 
 /** A request that has not arrived yet: the live case stream and the agents' day. */
 export interface InboxItem {

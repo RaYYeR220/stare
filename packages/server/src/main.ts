@@ -2,7 +2,17 @@ import 'dotenv/config';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { serve } from '@hono/node-server';
-import { applySchema, copyGraph, Db, graphOf, loadFlex, loadUdf, provisionTenantUser, templateOf, verifyLedger } from '@stare/core';
+import {
+  applySchema,
+  copyGraph,
+  Db,
+  graphOf,
+  loadFlex,
+  loadUdf,
+  provisionTenantUser,
+  templateOf,
+  verifyLedger,
+} from '@stare/core';
 import { CachedEmbedder } from '@stare/llm';
 import { buildGlobex, buildNorthwind, EMBED_CACHE, seedGraph } from '@stare/seed';
 import { buildApp } from './app.ts';
@@ -20,7 +30,10 @@ export async function bootstrap(rt: Runtime) {
   const graphs = await rt.admin.list();
   // Seeding always reads the embedding cache shipped with the seed, so no model key is needed to boot.
   const cache = new CachedEmbedder(null, EMBED_CACHE, 'text-embedding-qwen3-0-6b', 512);
-  for (const [tenant, build] of [['northwind', buildNorthwind], ['globex', buildGlobex]] as const) {
+  for (const [tenant, build] of [
+    ['northwind', buildNorthwind],
+    ['globex', buildGlobex],
+  ] as const) {
     const tpl = templateOf(tenant);
     if (!graphs.includes(tpl)) {
       log(`seeding ${tpl}`);
@@ -35,10 +48,16 @@ export async function bootstrap(rt: Runtime) {
       await copyGraph(rt.admin, tpl, live);
       log(`created ${live}`);
     }
-    await provisionTenantUser(rt.admin, tenant, { password: process.env[`STARE_${tenant.toUpperCase()}_PASSWORD`] || undefined });
+    await provisionTenantUser(rt.admin, tenant, {
+      password: process.env[`STARE_${tenant.toUpperCase()}_PASSWORD`] || undefined,
+    });
   }
   if (process.env.STARE_AUDITOR_PASSWORD) {
-    await provisionTenantUser(rt.admin, 'northwind', { readOnly: true, user: 'auditor', password: process.env.STARE_AUDITOR_PASSWORD });
+    await provisionTenantUser(rt.admin, 'northwind', {
+      readOnly: true,
+      user: 'auditor',
+      password: process.env.STARE_AUDITOR_PASSWORD,
+    });
     log('auditor (read-only) user provisioned for stare:northwind');
   }
 }
@@ -52,8 +71,15 @@ async function main() {
   const rt = new Runtime(cfg);
   await rt.start();
   await bootstrap(rt);
-  const app = buildApp(rt, { allowedOrigins: (process.env.STARE_ALLOWED_ORIGINS ?? '').split(',').filter(Boolean) });
-  serve({ fetch: app.fetch, port: cfg.port, hostname: process.env.HOST ?? '127.0.0.1' }, (i) => log(`listening on ${i.address}:${i.port} (${rt.models.offline ? 'offline models' : rt.models.llm.model})`));
+  rt.onRestart = () => bootstrap(rt);
+  const app = buildApp(rt, {
+    allowedOrigins: (process.env.STARE_ALLOWED_ORIGINS ?? '').split(',').filter(Boolean),
+  });
+  serve({ fetch: app.fetch, port: cfg.port, hostname: process.env.HOST ?? '127.0.0.1' }, (i) =>
+    log(
+      `listening on ${i.address}:${i.port} (${rt.models.offline ? 'offline models' : rt.models.llm.model})`,
+    ),
+  );
   const stop = async () => {
     await rt.stop();
     process.exit(0);

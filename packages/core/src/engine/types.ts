@@ -89,7 +89,15 @@ export interface Verdict {
   basis: Basis;
   policyId: PolicyId | null;
   policyVersionId: string | null;
-  account: { id: string; name: string; tier: string; status: string; ownerId: string | null; ownerName: string | null; score: number } | null;
+  account: {
+    id: string;
+    name: string;
+    tier: string;
+    status: string;
+    ownerId: string | null;
+    ownerName: string | null;
+    score: number;
+  } | null;
   intake: Intake;
   ignoredClaims: string[];
   limitViolations: ClauseHit[];

@@ -19,7 +19,12 @@ describe('stare UDF basics', () => {
       (pv)-[:HAS_CLAUSE]->(:Clause {id:'c3', key:'4.5', kind:'limit', rule:'{"field":"value","op":"lte","value":5000}'}),
       (pv)-[:HAS_CLAUSE]->(:Clause {id:'c4', key:'4.6', kind:'limit', rule:'{"field":"accountStatus","op":"neq","value":"collections"}'})`);
     const run = async (facts: object) =>
-      (await db.ro<{ v: any }>(`MATCH (pv:PolicyVersion {id:'refunds-v3'}) RETURN stare.violations($f, pv) AS v`, { f: JSON.stringify(facts) }))[0]!.v;
+      (
+        await db.ro<{ v: any }>(
+          `MATCH (pv:PolicyVersion {id:'refunds-v3'}) RETURN stare.violations($f, pv) AS v`,
+          { f: JSON.stringify(facts) },
+        )
+      )[0]!.v;
     const routine = await run({ days: 10, value: 200, accountStatus: 'active' });
     expect(routine).toEqual({ limit: [], default: [] });
     const exc = await run({ days: 41, value: 1800, accountStatus: 'active' });
@@ -37,10 +42,15 @@ describe('stare UDF basics', () => {
 describe('stare.scanTerms', () => {
   it('finds identifiers in node and edge properties (case-insensitive)', async () => {
     const db = await freshDb('scan', false);
-    await db.rw(`CREATE (:Contact {id:'c1', name:'Marta Lindqvist'})-[:NOTE {text:'call MARTA tomorrow'}]->(:Span {id:'s1', text:'nothing here'})`);
+    await db.rw(
+      `CREATE (:Contact {id:'c1', name:'Marta Lindqvist'})-[:NOTE {text:'call MARTA tomorrow'}]->(:Span {id:'s1', text:'nothing here'})`,
+    );
     const [row] = await db.ro<{ h: { kind: string; label: string; id: string; key: string }[] }>(
       "RETURN stare.scanTerms(['marta'], ['Contact', 'Span'], ['NOTE']) AS h",
     );
-    expect(row!.h.map((x) => `${x.kind}:${x.label}.${x.key}`).sort()).toEqual(['edge:NOTE.text', 'node:Contact.name']);
+    expect(row!.h.map((x) => `${x.kind}:${x.label}.${x.key}`).sort()).toEqual([
+      'edge:NOTE.text',
+      'node:Contact.name',
+    ]);
   });
 });

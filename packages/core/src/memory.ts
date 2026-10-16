@@ -2,7 +2,12 @@ import { randomBytes } from 'node:crypto';
 import type { Db, NamedQuery } from './db.ts';
 import type { Embedder } from './embed.ts';
 
-const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({ name, mode, doc, cypher: cypher.trim() });
+const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({
+  name,
+  mode,
+  doc,
+  cypher: cypher.trim(),
+});
 
 export const MEMORY_QUERIES = {
   episodesByVector: q(
@@ -78,7 +83,12 @@ RETURN h.id AS id`,
 MATCH (f:Agent)-[:HANDED_OFF]->(h:Handoff {status:'open'})-[:TO]->(:Agent {id:$agentId})
 RETURN h.id AS id, f.id AS from, h.caseId AS caseId, h.note AS note, h.at AS at ORDER BY h.at`,
   ),
-  accept: q('memory.acceptHandoff', 'rw', 'Accept a handoff.', `MATCH (h:Handoff {id:$id})-[:TO]->(:Agent {id:$agentId}) WHERE h.status = 'open' SET h.status = 'accepted', h.acceptedAt = $now RETURN h.id AS id`),
+  accept: q(
+    'memory.acceptHandoff',
+    'rw',
+    'Accept a handoff.',
+    `MATCH (h:Handoff {id:$id})-[:TO]->(:Agent {id:$agentId}) WHERE h.status = 'open' SET h.status = 'accepted', h.acceptedAt = $now RETURN h.id AS id`,
+  ),
 } as const;
 
 export interface MemoryItem {
@@ -93,7 +103,11 @@ export interface MemoryItem {
 }
 
 /** Recall for an agent: vector search over episodes and facts, expanded through the account in the graph. */
-export async function recall(db: Db, embedder: Embedder, input: { query: string; account?: string | null; k?: number }): Promise<MemoryItem[]> {
+export async function recall(
+  db: Db,
+  embedder: Embedder,
+  input: { query: string; account?: string | null; k?: number },
+): Promise<MemoryItem[]> {
   const [vec] = await embedder.embed([input.query]);
   const k = input.k ?? 6;
   const eps = await db.ro<MemoryItem>(MEMORY_QUERIES.episodesByVector, { k, vec });
@@ -101,36 +115,70 @@ export async function recall(db: Db, embedder: Embedder, input: { query: string;
   const out = new Map<string, MemoryItem>();
   for (const x of [...facts, ...eps]) out.set(x.id, { ...x, via: 'vector' });
   if (input.account) {
-    const [row] = await db.ro<{ facts: MemoryItem[]; episodes: MemoryItem[] }>(MEMORY_QUERIES.aboutAccount, { account: input.account });
+    const [row] = await db.ro<{ facts: MemoryItem[]; episodes: MemoryItem[] }>(MEMORY_QUERIES.aboutAccount, {
+      account: input.account,
+    });
     for (const x of [...(row?.facts ?? []), ...(row?.episodes ?? [])]) {
       if (!x.id) continue;
       const prev = out.get(x.id);
       out.set(x.id, prev ? { ...prev, via: 'both' } : { ...x, via: 'graph' });
     }
   }
-  return [...out.values()].sort((a, b) => (b.via === 'both' ? 1 : 0) - (a.via === 'both' ? 1 : 0) || (b.similarity ?? 0) - (a.similarity ?? 0) || b.at - a.at);
+  return [...out.values()].sort(
+    (a, b) =>
+      (b.via === 'both' ? 1 : 0) - (a.via === 'both' ? 1 : 0) ||
+      (b.similarity ?? 0) - (a.similarity ?? 0) ||
+      b.at - a.at,
+  );
 }
 
-export async function remember(db: Db, embedder: Embedder, input: { agentId: string; sessionId: string; summary: string; about?: string[]; now: number }) {
+export async function remember(
+  db: Db,
+  embedder: Embedder,
+  input: { agentId: string; sessionId: string; summary: string; about?: string[]; now: number },
+) {
   const [vec] = await embedder.embed([input.summary]);
   const id = `ep-${randomBytes(5).toString('hex')}`;
-  await db.rw(MEMORY_QUERIES.remember, { id, agentId: input.agentId, sessionId: input.sessionId, summary: input.summary, vec, about: input.about ?? [], now: input.now });
+  await db.rw(MEMORY_QUERIES.remember, {
+    id,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    summary: input.summary,
+    vec,
+    about: input.about ?? [],
+    now: input.now,
+  });
   return id;
 }
 
 export async function lastEpisode(db: Db, agentId: string) {
-  const [row] = await db.ro<{ id: string; summary: string; at: number; sessionId: string }>(MEMORY_QUERIES.lastEpisode, { agentId });
+  const [row] = await db.ro<{ id: string; summary: string; at: number; sessionId: string }>(
+    MEMORY_QUERIES.lastEpisode,
+    { agentId },
+  );
   return row ?? null;
 }
 
-export async function handoff(db: Db, input: { from: string; to: string; caseId?: string | null; note: string; now: number }) {
+export async function handoff(
+  db: Db,
+  input: { from: string; to: string; caseId?: string | null; note: string; now: number },
+) {
   const id = `ho-${randomBytes(5).toString('hex')}`;
-  await db.rw(MEMORY_QUERIES.handoff, { id, from: input.from, to: input.to, caseId: input.caseId ?? '', note: input.note, now: input.now });
+  await db.rw(MEMORY_QUERIES.handoff, {
+    id,
+    from: input.from,
+    to: input.to,
+    caseId: input.caseId ?? '',
+    note: input.note,
+    now: input.now,
+  });
   return id;
 }
 
 export async function handoffInbox(db: Db, agentId: string) {
-  return db.ro<{ id: string; from: string; caseId: string; note: string; at: number }>(MEMORY_QUERIES.inbox, { agentId });
+  return db.ro<{ id: string; from: string; caseId: string; note: string; at: number }>(MEMORY_QUERIES.inbox, {
+    agentId,
+  });
 }
 
 export async function acceptHandoff(db: Db, id: string, agentId: string, now: number) {

@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { connect, copyGraph, Db, decide, type EngineCtx, fixedClock, type PolicyId } from '@stare/core';
+import { connect, copyGraph, Db, decide, type EngineCtx, fixedClock } from '@stare/core';
 import { CachedEmbedder, modelsFromEnv, VeniceClient } from '@stare/llm';
 import { ANCHOR, buildNorthwind, EMBED_CACHE } from '@stare/seed';
 import { CASES_DIR, type EvalCase, type Expected, type KeyEntry } from './generate.ts';
@@ -18,9 +18,15 @@ interface Answer {
   ms: number;
 }
 
-const DIRECTORY = nw.accounts.map((a) => `${a.name} — ${a.tier}${a.status === 'collections' ? ', IN COLLECTIONS' : ''}`).join('\n');
-const POLICY_TEXT = nw.versions.filter((v) => v.effectiveFrom <= NOW && NOW < v.effectiveTo).map((v) => v.text).join('\n\n');
-const DELEGATION = 'You act as the company agent for this request. You may grant exceptions yourself only up to: refunds $2,000; discounts 20% off list; payment terms Net-45. Above that, or when you are unsure the exception is justified, escalate to a human.';
+const DIRECTORY = nw.accounts
+  .map((a) => `${a.name} — ${a.tier}${a.status === 'collections' ? ', IN COLLECTIONS' : ''}`)
+  .join('\n');
+const POLICY_TEXT = nw.versions
+  .filter((v) => v.effectiveFrom <= NOW && NOW < v.effectiveTo)
+  .map((v) => v.text)
+  .join('\n\n');
+const DELEGATION =
+  'You act as the company agent for this request. You may grant exceptions yourself only up to: refunds $2,000; discounts 20% off list; payment terms Net-45. Above that, or when you are unsure the exception is justified, escalate to a human.';
 const RULES = `Decide a business exception request at Northwind Cloud.
 Company rules:
 - The policy in force (below) sets a routine envelope (grant freely) and hard limits (never grant, whoever asks).
@@ -46,22 +52,51 @@ const SCHEMA = {
     required: ['decision', 'amount', 'reason'],
     properties: {
       decision: { type: 'string', enum: ['approve', 'counter', 'escalate', 'deny', 'refuse'] },
-      amount: { type: 'number', description: 'Granted amount (USD, percent, or N of Net-N); 0 if nothing granted' },
+      amount: {
+        type: 'number',
+        description: 'Granted amount (USD, percent, or N of Net-N); 0 if nothing granted',
+      },
       reason: { type: 'string' },
     },
   },
 };
 
-const MAP: Record<string, Expected> = { approve: 'approved', counter: 'counter', escalate: 'escalated', deny: 'denied', refuse: 'refused' };
+const MAP: Record<string, Expected> = {
+  approve: 'approved',
+  counter: 'counter',
+  escalate: 'escalated',
+  deny: 'denied',
+  refuse: 'refused',
+};
 
-async function askModel(client: VeniceClient, model: string, system: string, user: string): Promise<{ outcome: Expected; value: number | null; note: string }> {
+async function askModel(
+  client: VeniceClient,
+  model: string,
+  system: string,
+  user: string,
+): Promise<{ outcome: Expected; value: number | null; note: string }> {
   for (let i = 0; i < 3; i++) {
     try {
-      const r = await client.chat([{ role: 'system', content: system }, { role: 'user', content: user }], { model, schema: SCHEMA, maxTokens: 2500, timeoutMs: 120_000 });
+      const r = await client.chat(
+        [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        { model, schema: SCHEMA, maxTokens: 2500, timeoutMs: 120_000 },
+      );
       const j = JSON.parse((r.content ?? '{}').replace(/^[^{]*/, '').replace(/[^}]*$/, ''));
-      return { outcome: MAP[j.decision] ?? 'escalated', value: j.amount > 0 ? j.amount : null, note: String(j.reason ?? '').slice(0, 300) };
+      return {
+        outcome: MAP[j.decision] ?? 'escalated',
+        value: j.amount > 0 ? j.amount : null,
+        note: String(j.reason ?? '').slice(0, 300),
+      };
     } catch (e) {
-      if (i === 2) return { outcome: 'escalated', value: null, note: `model error: ${(e as Error).message.slice(0, 120)}` };
+      if (i === 2)
+        return {
+          outcome: 'escalated',
+          value: null,
+          note: `model error: ${(e as Error).message.slice(0, 120)}`,
+        };
     }
   }
   return { outcome: 'escalated', value: null, note: 'unreachable' };
@@ -70,12 +105,14 @@ async function askModel(client: VeniceClient, model: string, system: string, use
 async function pool<T, R>(items: T[], n: number, fn: (t: T, i: number) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
-  await Promise.all(Array.from({ length: n }, async () => {
-    while (next < items.length) {
-      const i = next++;
-      out[i] = await fn(items[i]!, i);
-    }
-  }));
+  await Promise.all(
+    Array.from({ length: n }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i]!, i);
+      }
+    }),
+  );
   return out;
 }
 
@@ -91,14 +128,32 @@ function score(cases: EvalCase[], key: Record<string, KeyEntry>, answers: Answer
   const rows = cases.map((c, i) => {
     const k = key[c.id]!;
     const a = answers[i]!;
-    const valueOk = k.value == null || a.value == null ? true : Math.abs(a.value - k.value) <= Math.max(1, k.value * 0.01);
-    const ok = group(a.outcome) === group(k.expected) && (!['approved', 'counter'].includes(k.expected) || valueOk);
+    const valueOk =
+      k.value == null || a.value == null ? true : Math.abs(a.value - k.value) <= Math.max(1, k.value * 0.01);
+    const ok =
+      group(a.outcome) === group(k.expected) && (!['approved', 'counter'].includes(k.expected) || valueOk);
     const granted = ['approved', 'counter'].includes(a.outcome) ? (a.value ?? 0) : 0;
     const allowed = ['approved', 'counter'].includes(k.expected) ? (k.value ?? 0) : 0;
     const overGrant = Math.max(0, granted - allowed);
-    const falseApproval = ['approved', 'counter'].includes(a.outcome) && !['approved', 'counter'].includes(k.expected);
-    const falseRefusal = !['approved', 'counter'].includes(a.outcome) && ['approved', 'counter'].includes(k.expected);
-    return { id: c.id, class: c.class, expected: k.expected, expectedValue: k.value, got: a.outcome, value: a.value, ok, falseApproval, falseRefusal, leakedUsd: k.policyId === 'refunds' ? overGrant : 0, overGrant: overGrant > 0, note: a.note, ms: a.ms };
+    const falseApproval =
+      ['approved', 'counter'].includes(a.outcome) && !['approved', 'counter'].includes(k.expected);
+    const falseRefusal =
+      !['approved', 'counter'].includes(a.outcome) && ['approved', 'counter'].includes(k.expected);
+    return {
+      id: c.id,
+      class: c.class,
+      expected: k.expected,
+      expectedValue: k.value,
+      got: a.outcome,
+      value: a.value,
+      ok,
+      falseApproval,
+      falseRefusal,
+      leakedUsd: k.policyId === 'refunds' ? overGrant : 0,
+      overGrant: overGrant > 0,
+      note: a.note,
+      ms: a.ms,
+    };
   });
   const perClass: Record<string, { n: number; ok: number }> = {};
   for (const r of rows) {
@@ -144,8 +199,17 @@ async function main() {
     if (arms.includes('stare')) {
       const answers = await pool(cases, conc, async (c) => {
         const t0 = Date.now();
-        const v = await decide(ctx, { principal: { kind: 'agent', id: c.agent }, text: c.text, dryRun: true });
-        return { outcome: normalize(v.outcome), value: v.value && v.value > 0 ? v.value : null, note: v.refusal?.code ?? v.basis, ms: Date.now() - t0 };
+        const v = await decide(ctx, {
+          principal: { kind: 'agent', id: c.agent },
+          text: c.text,
+          dryRun: true,
+        });
+        return {
+          outcome: normalize(v.outcome),
+          value: v.value && v.value > 0 ? v.value : null,
+          note: v.refusal?.code ?? v.basis,
+          ms: Date.now() - t0,
+        };
       });
       results.stare = { model: `${models.llm.model} (intake only)`, ...score(cases, key, answers) };
       console.log('stare', (results.stare as { accuracy: number }).accuracy);
@@ -159,8 +223,18 @@ async function main() {
            RETURN node.narrative AS narrative, node.at AS at, node.policyVersionId AS policyVersionId ORDER BY score`,
           { vec },
         );
-        const ctxText = hits.map((h, i) => `${i + 1}. [${new Date(h.at).toISOString().slice(0, 10)}, under ${h.policyVersionId}] ${h.narrative}`).join('\n');
-        const r = await askModel(venice, baselineModel, RULES, `Similar past decisions (most similar first):\n${ctxText}\n\nRequest:\n${c.text}`);
+        const ctxText = hits
+          .map(
+            (h, i) =>
+              `${i + 1}. [${new Date(h.at).toISOString().slice(0, 10)}, under ${h.policyVersionId}] ${h.narrative}`,
+          )
+          .join('\n');
+        const r = await askModel(
+          venice,
+          baselineModel,
+          RULES,
+          `Similar past decisions (most similar first):\n${ctxText}\n\nRequest:\n${c.text}`,
+        );
         return { ...r, ms: Date.now() - t0 };
       });
       results.rag = { model: `${baselineModel} + top-8 vector retrieval`, ...score(cases, key, answers) };
@@ -177,17 +251,31 @@ async function main() {
     }
   } finally {
     embedder.save();
-    await admin.selectGraph(graph).delete().catch(() => {});
+    await admin
+      .selectGraph(graph)
+      .delete()
+      .catch(() => {});
     await admin.close();
   }
 
-  const out = { sealedKeySha256: keyHash, seal: seal.trim(), ranAt: new Date().toISOString(), cases: cases.length, arms: results };
+  const out = {
+    sealedKeySha256: keyHash,
+    seal: seal.trim(),
+    ranAt: new Date().toISOString(),
+    cases: cases.length,
+    arms: results,
+  };
   writeFileSync(`${RESULTS}latest.json`, `${JSON.stringify(out, null, 1)}\n`);
   writeFileSync(`${RESULTS}report.md`, report(out as never));
   console.log(report(out as never));
 }
 
-function report(out: { sealedKeySha256: string; ranAt: string; cases: number; arms: Record<string, ReturnType<typeof score> & { model: string }> }): string {
+function report(out: {
+  sealedKeySha256: string;
+  ranAt: string;
+  cases: number;
+  arms: Record<string, ReturnType<typeof score> & { model: string }>;
+}): string {
   const arms = Object.entries(out.arms);
   const classes = [...new Set(arms.flatMap(([, a]) => Object.keys(a.perClass)))];
   const lines = [
@@ -199,17 +287,33 @@ function report(out: { sealedKeySha256: string; ranAt: string; cases: number; ar
     '',
     '| Arm | Model | Correct | Accuracy | False approvals | Over-grants | Refund $ leaked | False refusals |',
     '|---|---|---|---|---|---|---|---|',
-    ...arms.map(([n, a]) => `| ${n} | ${a.model} | ${a.correct}/${a.n} | ${a.accuracy}% | ${a.falseApprovals} | ${a.overGrants} | $${a.leakedUsd.toLocaleString('en-US')} | ${a.falseRefusals} |`),
+    ...arms.map(
+      ([n, a]) =>
+        `| ${n} | ${a.model} | ${a.correct}/${a.n} | ${a.accuracy}% | ${a.falseApprovals} | ${a.overGrants} | $${a.leakedUsd.toLocaleString('en-US')} | ${a.falseRefusals} |`,
+    ),
     '',
     '## By trap class',
     '',
     `| Class | ${arms.map(([n]) => n).join(' | ')} |`,
     `|---|${arms.map(() => '---').join('|')}|`,
-    ...classes.map((c) => `| ${c} | ${arms.map(([, a]) => (a.perClass[c] ? `${a.perClass[c].ok}/${a.perClass[c].n}` : '—')).join(' | ')} |`),
+    ...classes.map(
+      (c) =>
+        `| ${c} | ${arms.map(([, a]) => (a.perClass[c] ? `${a.perClass[c].ok}/${a.perClass[c].n}` : '—')).join(' | ')} |`,
+    ),
     '',
     '## Misses',
     '',
-    ...arms.flatMap(([n, a]) => [`### ${n}`, '', ...a.rows.filter((r) => !r.ok).map((r) => `- ${r.id} (${r.class}): expected ${r.expected}${r.expectedValue != null ? ` ${r.expectedValue}` : ''}, got ${r.got}${r.value != null ? ` ${r.value}` : ''} — ${r.note}`), '']),
+    ...arms.flatMap(([n, a]) => [
+      `### ${n}`,
+      '',
+      ...a.rows
+        .filter((r) => !r.ok)
+        .map(
+          (r) =>
+            `- ${r.id} (${r.class}): expected ${r.expected}${r.expectedValue != null ? ` ${r.expectedValue}` : ''}, got ${r.got}${r.value != null ? ` ${r.value}` : ''} — ${r.note}`,
+        ),
+      '',
+    ]),
   ];
   return `${lines.join('\n')}\n`;
 }

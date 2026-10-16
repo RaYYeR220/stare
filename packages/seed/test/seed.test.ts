@@ -1,5 +1,5 @@
+import { type Db, HashEmbedder, verifyLedger } from '@stare/core';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { HashEmbedder, verifyLedger, type Db } from '@stare/core';
 import { freshDb } from '../../core/test/helpers.ts';
 import { ANCHOR, buildGlobex, buildNorthwind, seedGraph, World } from '../src/index.ts';
 
@@ -30,19 +30,30 @@ describe('Northwind build', () => {
     const world = new World(nw.holds, nw.grants, nw.owns, nw.delegations, nw.versions, nw.clauses);
     const byId = new Map(nw.decisions.map((d) => [d.id, d]));
     const overturnsOf = new Map<string, typeof nw.decisions>();
-    for (const d of nw.decisions) if (d.overturns) overturnsOf.set(d.overturns.id, [...(overturnsOf.get(d.overturns.id) ?? []), d]);
+    for (const d of nw.decisions)
+      if (d.overturns) overturnsOf.set(d.overturns.id, [...(overturnsOf.get(d.overturns.id) ?? []), d]);
     const bad = new Set([nw.story.unauthorized, nw.story.conflict]);
     for (const d of nw.decisions) {
       if (bad.has(d.id)) continue;
       const s = world.standing(d.id, d.at + 1, byId, overturnsOf);
-      expect.soft(s.codes.filter((c) => c === 'NO_AUTHORITY' || c === 'CONFLICT'), d.id).toEqual([]);
+      expect
+        .soft(
+          s.codes.filter((c) => c === 'NO_AUTHORITY' || c === 'CONFLICT'),
+          d.id,
+        )
+        .toEqual([]);
     }
   });
 });
 
 describe('seeded graph', () => {
   const flag = async (id: string) =>
-    (await db.ro<{ s: { flag: string; reasons: { code: string }[] } }>('MATCH (d:Decision {id:$id}) RETURN stare.standing(d, $now) AS s', { id, now: ANCHOR }))[0]!.s;
+    (
+      await db.ro<{ s: { flag: string; reasons: { code: string }[] } }>(
+        'MATCH (d:Decision {id:$id}) RETURN stare.standing(d, $now) AS s',
+        { id, now: ANCHOR },
+      )
+    )[0]!.s;
 
   it('story decisions carry the intended good-law flags in the database', async () => {
     expect((await flag(nw.story.unauthorized!)).reasons[0]!.code).toBe('NO_AUTHORITY');
@@ -63,8 +74,12 @@ describe('seeded graph', () => {
     const world = new World(nw.holds, nw.grants, nw.owns, nw.delegations, nw.versions, nw.clauses);
     const byId = new Map(nw.decisions.map((d) => [d.id, d]));
     const overturnsOf = new Map<string, typeof nw.decisions>();
-    for (const d of nw.decisions) if (d.overturns) overturnsOf.set(d.overturns.id, [...(overturnsOf.get(d.overturns.id) ?? []), d]);
-    const [row] = await db.ro<{ r: { id: string; flag: string }[] }>('MATCH (d:Decision) WITH collect(d) AS ds RETURN stare.standingMany(ds, $now) AS r', { now: ANCHOR });
+    for (const d of nw.decisions)
+      if (d.overturns) overturnsOf.set(d.overturns.id, [...(overturnsOf.get(d.overturns.id) ?? []), d]);
+    const [row] = await db.ro<{ r: { id: string; flag: string }[] }>(
+      'MATCH (d:Decision) WITH collect(d) AS ds RETURN stare.standingMany(ds, $now) AS r',
+      { now: ANCHOR },
+    );
     const memo = new Map();
     let n = 0;
     for (const x of row!.r) {
@@ -80,7 +95,10 @@ describe('seeded graph', () => {
   });
 
   it('the flag mix is realistic', async () => {
-    const [row] = await db.ro<{ r: { flag: string }[] }>('MATCH (d:Decision) WITH collect(d) AS ds RETURN stare.standingMany(ds, $now) AS r', { now: ANCHOR });
+    const [row] = await db.ro<{ r: { flag: string }[] }>(
+      'MATCH (d:Decision) WITH collect(d) AS ds RETURN stare.standingMany(ds, $now) AS r',
+      { now: ANCHOR },
+    );
     const count = (f: string) => row!.r.filter((x) => x.flag === f).length;
     expect(count('red')).toBeGreaterThanOrEqual(10);
     expect(count('yellow')).toBeGreaterThanOrEqual(3);

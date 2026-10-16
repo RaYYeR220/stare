@@ -1,7 +1,12 @@
 import type { NamedQuery } from '../db.ts';
 import { LEDGER_HEAD, ledgerWrite } from '../ledger.ts';
 
-const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({ name, mode, doc, cypher: cypher.trim() });
+const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({
+  name,
+  mode,
+  doc,
+  cypher: cypher.trim(),
+});
 
 /** Every query the decision engine runs. docs/queries.md is generated from this catalog. */
 export const Q = {

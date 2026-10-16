@@ -16,12 +16,17 @@ describe('Db', () => {
 
   it('refuses to run a write query through ro()', async () => {
     const db = await freshDb('db2', false);
-    await expect(db.ro({ name: 'x', mode: 'rw', cypher: 'CREATE ()', doc: '' })).rejects.toThrow(/not read-only/);
+    await expect(db.ro({ name: 'x', mode: 'rw', cypher: 'CREATE ()', doc: '' })).rejects.toThrow(
+      /not read-only/,
+    );
   });
 
   it('passes list and nested params', async () => {
     const db = await freshDb('db3', false);
-    const rows = await db.ro<{ n: number; s: string }>('RETURN size($xs) AS n, $m.k AS s', { xs: [1, 2, 3], m: { k: 'ok' } });
+    const rows = await db.ro<{ n: number; s: string }>('RETURN size($xs) AS n, $m.k AS s', {
+      xs: [1, 2, 3],
+      m: { k: 'ok' },
+    });
     expect(rows[0]).toEqual({ n: 3, s: 'ok' });
   });
 });

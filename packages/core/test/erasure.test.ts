@@ -3,7 +3,7 @@ import { decide } from '../src/engine/decide.ts';
 import { eraseSubject, naiveControl, redact, verifyCertificate } from '../src/erasure.ts';
 import { verifyLedger } from '../src/ledger.ts';
 import { adminClient } from './helpers.ts';
-import { ctxOn, inbox, northwindBase, NOW, nw } from './northwind.ts';
+import { ctxOn, inbox, NOW, northwindBase, nw } from './northwind.ts';
 
 let base: string;
 beforeAll(async () => {
@@ -20,7 +20,12 @@ describe('forget with proof', () => {
     const cert = (await eraseSubject({ ...ctx, clock: { now: () => NOW + 10 } }, subject()))!;
     expect(cert.checks.filter((c) => !c.pass)).toEqual([]);
     expect(cert.verdict).toBe('ERASED');
-    expect(cert.checks.map((c) => [c.id, c.pass])).toEqual([['C1', true], ['C2', true], ['C3', true], ['C4', true]]);
+    expect(cert.checks.map((c) => [c.id, c.pass])).toEqual([
+      ['C1', true],
+      ['C2', true],
+      ['C3', true],
+      ['C4', true],
+    ]);
     expect(cert.counts.factsDeleted).toContain(nw.story.factErased);
     expect(cert.counts.factsRetained.map((f) => f.id)).toContain(nw.story.factRetained);
     expect(cert.counts.messagesErased).toBeGreaterThan(2);
@@ -41,7 +46,9 @@ describe('forget with proof', () => {
 
     // the ledger still verifies, and the certificate itself is ledgered
     expect((await verifyLedger(ctx.db, { deep: true })).ok).toBe(true);
-    const [entry] = await ctx.db.ro<{ payload: string }>("MATCH (e:LedgerEntry {kind:'erasure'}) RETURN e.payload AS payload");
+    const [entry] = await ctx.db.ro<{ payload: string }>(
+      "MATCH (e:LedgerEntry {kind:'erasure'}) RETURN e.payload AS payload",
+    );
     expect(JSON.parse(entry!.payload).certificateHash).toBe(cert.certificateHash);
   });
 
@@ -61,8 +68,12 @@ describe('forget with proof', () => {
   });
 
   it('redaction is case-insensitive and longest-first', () => {
-    expect(redact('Marta Lindqvist (marta.lindqvist@acme.example) said MARTA agreed', ['Marta Lindqvist', 'marta.lindqvist@acme.example', 'Marta'])).toBe(
-      '[erased] ([erased]) said [erased] agreed',
-    );
+    expect(
+      redact('Marta Lindqvist (marta.lindqvist@acme.example) said MARTA agreed', [
+        'Marta Lindqvist',
+        'marta.lindqvist@acme.example',
+        'Marta',
+      ]),
+    ).toBe('[erased] ([erased]) said [erased] agreed');
   });
 });

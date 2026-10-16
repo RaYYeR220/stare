@@ -1,21 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalJson, LEDGER_HEAD, ledgerParams, ledgerWrite, Q_LEDGER_APPEND_STANDALONE, Q_LEDGER_INIT, verifyLedger } from '../src/ledger.ts';
 import { connect, Db } from '../src/db.ts';
+import {
+  canonicalJson,
+  LEDGER_HEAD,
+  ledgerParams,
+  ledgerWrite,
+  Q_LEDGER_APPEND_STANDALONE,
+  Q_LEDGER_INIT,
+  verifyLedger,
+} from '../src/ledger.ts';
 import { freshDb, TEST_URL } from './helpers.ts';
 
 describe('ledger', () => {
   it('canonicalJson is key-order independent', () => {
-    expect(canonicalJson({ b: 1, a: [2, { d: 1, c: 2 }] })).toBe(canonicalJson({ a: [2, { c: 2, d: 1 }], b: 1 }));
+    expect(canonicalJson({ b: 1, a: [2, { d: 1, c: 2 }] })).toBe(
+      canonicalJson({ a: [2, { c: 2, d: 1 }], b: 1 }),
+    );
     expect(canonicalJson({ a: undefined, b: null })).toBe('{"b":null}');
   });
 
   it('appends in-database, verifies client-side, detects tampering', async () => {
     const db = await freshDb('ledger');
     await db.rw(Q_LEDGER_INIT);
-    for (let i = 0; i < 3; i++) await db.rw(Q_LEDGER_APPEND_STANDALONE, ledgerParams('decision', `D${i}`, 1000 + i, { value: i }));
+    for (let i = 0; i < 3; i++)
+      await db.rw(Q_LEDGER_APPEND_STANDALONE, ledgerParams('decision', `D${i}`, 1000 + i, { value: i }));
     expect(await verifyLedger(db)).toMatchObject({ ok: true, length: 3 });
     await db.rw(`MATCH (e:LedgerEntry {seq:2}) SET e.payload = replace(e.payload, '"value":1', '"value":9')`);
-    expect(await verifyLedger(db)).toMatchObject({ ok: false, brokenAt: 2, reason: 'payload does not match its hash' });
+    expect(await verifyLedger(db)).toMatchObject({
+      ok: false,
+      brokenAt: 2,
+      reason: 'payload does not match its hash',
+    });
   });
 
   it('fails closed without a ledger head: nothing is written', async () => {
@@ -32,7 +47,15 @@ describe('ledger', () => {
     const db = await freshDb('ledger-deep');
     await db.rw(Q_LEDGER_INIT);
     await db.rw(`CREATE (:Agent {id:'ag'})`);
-    const payload = { caseId: 'C1', outcome: 'approved', value: 900, basis: 'precedent', policyVersionId: 'refunds-v3', madeBy: 'ag', at: 5 };
+    const payload = {
+      caseId: 'C1',
+      outcome: 'approved',
+      value: 900,
+      basis: 'precedent',
+      policyVersionId: 'refunds-v3',
+      madeBy: 'ag',
+      at: 5,
+    };
     await db.rw(
       `${LEDGER_HEAD} MATCH (ag:Agent {id:'ag'})
        CREATE (d:Decision {id:'D1', caseId:'C1', outcome:'approved', value:900, basis:'precedent', policyVersionId:'refunds-v3', at:5})-[:MADE_BY]->(ag)
@@ -47,7 +70,11 @@ describe('ledger', () => {
     await db.rw(`CREATE (:Decision {id:'D2', caseId:'C2'})`);
     expect((await verifyLedger(db, { deep: true })).unrecorded).toEqual(['D2']);
     await db.rw(`MATCH (d:Decision) DETACH DELETE d`);
-    expect(await verifyLedger(db, { deep: true })).toMatchObject({ ok: false, vanished: ['D1'], reason: 'recorded decisions no longer exist' });
+    expect(await verifyLedger(db, { deep: true })).toMatchObject({
+      ok: false,
+      vanished: ['D1'],
+      reason: 'recorded decisions no longer exist',
+    });
   });
 
   it('rejects an entry whose unhashed refId was repointed, and a missing head', async () => {
@@ -67,7 +94,10 @@ describe('ledger', () => {
     const clients = await Promise.all(Array.from({ length: 16 }, () => connect({ url: TEST_URL })));
     await Promise.all(
       Array.from({ length: 64 }, (_, i) =>
-        new Db(clients[i % 16]!, db.graphName).rw(Q_LEDGER_APPEND_STANDALONE, ledgerParams('decision', `C${i}`, i, { i })),
+        new Db(clients[i % 16]!, db.graphName).rw(
+          Q_LEDGER_APPEND_STANDALONE,
+          ledgerParams('decision', `C${i}`, i, { i }),
+        ),
       ),
     );
     await Promise.all(clients.map((c) => c.close()));

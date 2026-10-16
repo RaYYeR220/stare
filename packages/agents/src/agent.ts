@@ -4,7 +4,10 @@ import type { ChatMessage, ToolCall, ToolSpec } from '@stare/llm';
 /** The chat model an agent thinks with (Venice in production, a script in tests). */
 export interface ChatModel {
   readonly model: string;
-  chat(messages: ChatMessage[], tools: ToolSpec[]): Promise<{ content: string | null; toolCalls: ToolCall[] }>;
+  chat(
+    messages: ChatMessage[],
+    tools: ToolSpec[],
+  ): Promise<{ content: string | null; toolCalls: ToolCall[] }>;
 }
 
 export interface AgentProfile {
@@ -42,16 +45,48 @@ Rules you cannot break:
 Finish with a short reply to the colleague who asked (two sentences at most), built only from the desk's own result: do not add facts, routes or approvals it did not state.`;
 
 export const ROSTER: Record<AgentProfile['id'], AgentProfile> = {
-  'a-support': { id: 'a-support', name: 'Support agent', scope: 'refunds', system: `${BASE}\nYour scope: refunds. Discounts go to a-renewals; payment terms go to a-billing.` },
-  'a-renewals': { id: 'a-renewals', name: 'Renewals agent', scope: 'discounts', system: `${BASE}\nYour scope: discounts on renewals. Refunds go to a-support; payment terms go to a-billing.` },
-  'a-billing': { id: 'a-billing', name: 'Billing agent', scope: 'payment terms', system: `${BASE}\nYour scope: payment terms (Net-N). Refunds go to a-support; discounts go to a-renewals.` },
+  'a-support': {
+    id: 'a-support',
+    name: 'Support agent',
+    scope: 'refunds',
+    system: `${BASE}\nYour scope: refunds. Discounts go to a-renewals; payment terms go to a-billing.`,
+  },
+  'a-renewals': {
+    id: 'a-renewals',
+    name: 'Renewals agent',
+    scope: 'discounts',
+    system: `${BASE}\nYour scope: discounts on renewals. Refunds go to a-support; payment terms go to a-billing.`,
+  },
+  'a-billing': {
+    id: 'a-billing',
+    name: 'Billing agent',
+    scope: 'payment terms',
+    system: `${BASE}\nYour scope: payment terms (Net-N). Refunds go to a-support; discounts go to a-renewals.`,
+  },
 };
 
-const ALLOWED = new Set(['file_exception', 'find_precedent', 'check_standing', 'recall', 'remember', 'handoff', 'my_handoffs', 'who_can_approve', 'leading_cases']);
+const ALLOWED = new Set([
+  'file_exception',
+  'find_precedent',
+  'check_standing',
+  'recall',
+  'remember',
+  'handoff',
+  'my_handoffs',
+  'who_can_approve',
+  'leading_cases',
+]);
 
 export async function connectDesk(url: string, token: string): Promise<Client> {
-  const client = new Client({ name: 'stare-agent', version: '1.0.0' }, { versionNegotiation: { mode: 'auto' } });
-  await client.connect(new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
+  const client = new Client(
+    { name: 'stare-agent', version: '1.0.0' },
+    { versionNegotiation: { mode: 'auto' } },
+  );
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(url), {
+      requestInit: { headers: { authorization: `Bearer ${token}` } },
+    }),
+  );
   return client;
 }
 
@@ -60,14 +95,27 @@ export async function toolSpecs(client: Client): Promise<ToolSpec[]> {
   const { tools } = await client.listTools();
   return tools
     .filter((t) => ALLOWED.has(t.name))
-    .map((t) => ({ type: 'function', function: { name: t.name, description: t.description ?? t.name, parameters: (t.inputSchema as Record<string, unknown>) ?? { type: 'object', properties: {} } } }));
+    .map((t) => ({
+      type: 'function',
+      function: {
+        name: t.name,
+        description: t.description ?? t.name,
+        parameters: (t.inputSchema as Record<string, unknown>) ?? { type: 'object', properties: {} },
+      },
+    }));
 }
 
 /**
  * One request handled by one agent: a bounded tool-calling loop over the desk's MCP tools. The model
  * chooses tools; the desk (not the model) decides outcomes; the transcript keeps every call and result.
  */
-export async function handle(profile: AgentProfile, client: Client, model: ChatModel, request: string, opts: { maxTurns?: number; tools?: ToolSpec[] } = {}): Promise<Transcript> {
+export async function handle(
+  profile: AgentProfile,
+  client: Client,
+  model: ChatModel,
+  request: string,
+  opts: { maxTurns?: number; tools?: ToolSpec[] } = {},
+): Promise<Transcript> {
   const t0 = performance.now();
   const tools = opts.tools ?? (await toolSpecs(client));
   const messages: ChatMessage[] = [
@@ -97,15 +145,34 @@ export async function handle(profile: AgentProfile, client: Client, model: ChatM
       if (!ALLOWED.has(call.function.name)) text = `Tool ${call.function.name} is not available to agents.`;
       else {
         try {
-          const res = (await client.callTool({ name: call.function.name, arguments: args })) as { content?: { type: string; text?: string }[]; structuredContent?: unknown };
-          text = (res.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('\n') || '(no text)';
+          const res = (await client.callTool({ name: call.function.name, arguments: args })) as {
+            content?: { type: string; text?: string }[];
+            structuredContent?: unknown;
+          };
+          text =
+            (res.content ?? [])
+              .filter((c) => c.type === 'text')
+              .map((c) => c.text)
+              .join('\n') || '(no text)';
           structured = res.structuredContent ?? null;
         } catch (e) {
           text = `Tool error: ${(e as Error).message}`;
         }
       }
-      steps.push({ kind: 'tool', tool: call.function.name, args, result: text, structured, ms: Math.round(performance.now() - s0) });
-      messages.push({ role: 'tool', tool_call_id: call.id, name: call.function.name, content: text.slice(0, 4000) });
+      steps.push({
+        kind: 'tool',
+        tool: call.function.name,
+        args,
+        result: text,
+        structured,
+        ms: Math.round(performance.now() - s0),
+      });
+      messages.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        name: call.function.name,
+        content: text.slice(0, 4000),
+      });
     }
   }
   if (!reply) {

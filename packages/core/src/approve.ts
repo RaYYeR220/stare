@@ -5,7 +5,12 @@ import type { PolicyId } from './engine/types.ts';
 import { LEDGER_HEAD, ledgerParams, ledgerWrite } from './ledger.ts';
 import { proposeRules } from './rules.ts';
 
-const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({ name, mode, doc, cypher: cypher.trim() });
+const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({
+  name,
+  mode,
+  doc,
+  cypher: cypher.trim(),
+});
 
 export const APPROVE_QUERIES = {
   load: q(
@@ -95,55 +100,151 @@ export interface ResolveResult {
  */
 export async function resolveEscalation(ctx: EngineCtx, input: ResolveInput): Promise<ResolveResult> {
   const now = ctx.clock.now();
-  const res: ResolveResult = { ok: false, refusal: null, decisionId: null, ledgerSeq: null, outcome: null, value: null, approver: null, citations: [], proposedRules: [] };
-  const [e] = await ctx.db.ro<{ status: string; caseId: string; policyId: PolicyId; value: number; days: number | null; reason: string; text: string; filedBy: string; accountId: string; account: string; routedTo: string }>(
-    APPROVE_QUERIES.load,
-    { id: input.escalationId },
-  );
+  const res: ResolveResult = {
+    ok: false,
+    refusal: null,
+    decisionId: null,
+    ledgerSeq: null,
+    outcome: null,
+    value: null,
+    approver: null,
+    citations: [],
+    proposedRules: [],
+  };
+  const [e] = await ctx.db.ro<{
+    status: string;
+    caseId: string;
+    policyId: PolicyId;
+    value: number;
+    days: number | null;
+    reason: string;
+    text: string;
+    filedBy: string;
+    accountId: string;
+    account: string;
+    routedTo: string;
+  }>(APPROVE_QUERIES.load, { id: input.escalationId });
   if (!e) return { ...res, refusal: { code: 'NOT_FOUND', detail: 'no such escalation' } };
-  if (e.status !== 'open') return { ...res, refusal: { code: 'NOT_OPEN', detail: `escalation is ${e.status}` } };
-  if (e.filedBy === input.personId) return { ...res, refusal: { code: 'CONFLICT', detail: 'nobody rules on a request they filed' } };
+  if (e.status !== 'open')
+    return { ...res, refusal: { code: 'NOT_OPEN', detail: `escalation is ${e.status}` } };
+  if (e.filedBy === input.personId)
+    return { ...res, refusal: { code: 'CONFLICT', detail: 'nobody rules on a request they filed' } };
   if (input.approve && input.value !== undefined) {
-    const ok = typeof input.value === 'number' && Number.isFinite(input.value) && input.value > 0 && input.value <= e.value;
-    if (!ok) return { ...res, refusal: { code: 'BAD_VALUE', detail: `an approval must be a positive amount no larger than requested (${e.value})` } };
+    const ok =
+      typeof input.value === 'number' &&
+      Number.isFinite(input.value) &&
+      input.value > 0 &&
+      input.value <= e.value;
+    if (!ok)
+      return {
+        ...res,
+        refusal: {
+          code: 'BAD_VALUE',
+          detail: `an approval must be a positive amount no larger than requested (${e.value})`,
+        },
+      };
   }
   const value = input.approve ? (input.value ?? e.value) : 0;
-  const [auth] = await ctx.db.ro<{ name: string; active: boolean; cap: number; owns: boolean }>(APPROVE_QUERIES.authority, {
-    personId: input.personId, policyId: e.policyId, accountId: e.accountId, now,
-  });
-  if (!auth || !auth.active) return { ...res, refusal: { code: 'NOT_AUTHORIZED', detail: 'not an active member of staff' } };
+  const [auth] = await ctx.db.ro<{ name: string; active: boolean; cap: number; owns: boolean }>(
+    APPROVE_QUERIES.authority,
+    {
+      personId: input.personId,
+      policyId: e.policyId,
+      accountId: e.accountId,
+      now,
+    },
+  );
+  if (!auth?.active)
+    return { ...res, refusal: { code: 'NOT_AUTHORIZED', detail: 'not an active member of staff' } };
   res.approver = { id: input.personId, name: auth.name, cap: auth.cap };
-  if (auth.owns) return { ...res, refusal: { code: 'CONFLICT', detail: `${auth.name} owns ${e.account}; someone independent must rule` } };
+  if (auth.owns)
+    return {
+      ...res,
+      refusal: { code: 'CONFLICT', detail: `${auth.name} owns ${e.account}; someone independent must rule` },
+    };
   if (auth.cap <= 0 || auth.cap < value) {
-    return { ...res, refusal: { code: 'NOT_AUTHORIZED', detail: `${auth.name} may approve up to ${auth.cap} under ${e.policyId}; this needs ${value}` } };
+    return {
+      ...res,
+      refusal: {
+        code: 'NOT_AUTHORIZED',
+        detail: `${auth.name} may approve up to ${auth.cap} under ${e.policyId}; this needs ${value}`,
+      },
+    };
   }
 
   // What the approver saw: the same good-law analysis the agent ran, and the policy limits in force.
   const dry = await decide(ctx, {
     principal: { kind: 'person', id: input.personId },
-    intake: { policyId: e.policyId, accountName: e.account, value: input.approve ? value : e.value, days: e.days, reason: e.reason, claims: [] },
+    intake: {
+      policyId: e.policyId,
+      accountName: e.account,
+      value: input.approve ? value : e.value,
+      days: e.days,
+      reason: e.reason,
+      claims: [],
+    },
     dryRun: true,
   });
   if (input.approve && dry.limitViolations.length) {
     const c = dry.limitViolations[0]!;
-    return { ...res, refusal: { code: 'POLICY_LIMIT', detail: `${dry.policyVersionId} ${c.key}: nobody may grant this` } };
+    return {
+      ...res,
+      refusal: { code: 'POLICY_LIMIT', detail: `${dry.policyVersionId} ${c.key}: nobody may grant this` },
+    };
   }
   res.citations = dry.citations.filter((c) => c.standing.flag === 'green').map((c) => c.id);
   const decisionId = `dec-${randomBytes(5).toString('hex')}`;
   const outcome = input.approve ? 'approved' : 'denied';
   const narrative = `${input.approve ? 'Approved' : 'Rejected'} by ${auth.name}${input.note ? `: ${input.note}` : '.'}`;
   const payload = {
-    caseId: e.caseId, outcome, value, basis: 'human', policyVersionId: dry.policyVersionId, madeBy: input.personId, at: now,
-    onAuthorityOf: null, accountId: e.accountId, cites: res.citations, subjectCommitment: null, escalationId: input.escalationId,
+    caseId: e.caseId,
+    outcome,
+    value,
+    basis: 'human',
+    policyVersionId: dry.policyVersionId,
+    madeBy: input.personId,
+    at: now,
+    onAuthorityOf: null,
+    accountId: e.accountId,
+    cites: res.citations,
+    subjectCommitment: null,
+    escalationId: input.escalationId,
   };
   const { rows } = await ctx.db.rw<{ id: string; seq: number }>(APPROVE_QUERIES.commit, {
-    escalationId: input.escalationId, pvId: dry.policyVersionId, accountId: e.accountId, reason: e.reason, personId: input.personId,
-    policyId: e.policyId, value, requested: e.value, citeIds: res.citations, decisionId, outcome, now, narrative, note: input.note ?? '',
+    escalationId: input.escalationId,
+    pvId: dry.policyVersionId,
+    accountId: e.accountId,
+    reason: e.reason,
+    personId: input.personId,
+    policyId: e.policyId,
+    value,
+    requested: e.value,
+    citeIds: res.citations,
+    decisionId,
+    outcome,
+    now,
+    narrative,
+    note: input.note ?? '',
     status: input.approve ? 'approved' : 'rejected',
-    facts: JSON.stringify({ policyId: e.policyId, value, requested: e.value, days: e.days, reason: e.reason, tier: dry.account?.tier, accountStatus: dry.account?.status }),
+    facts: JSON.stringify({
+      policyId: e.policyId,
+      value,
+      requested: e.value,
+      days: e.days,
+      reason: e.reason,
+      tier: dry.account?.tier,
+      accountStatus: dry.account?.status,
+    }),
     ...ledgerParams('decision', decisionId, now, payload),
   });
-  if (!rows.length) return { ...res, refusal: { code: 'CHANGED_UNDER_US', detail: 'authority, tenure or the escalation changed while ruling' } };
+  if (!rows.length)
+    return {
+      ...res,
+      refusal: {
+        code: 'CHANGED_UNDER_US',
+        detail: 'authority, tenure or the escalation changed while ruling',
+      },
+    };
   res.ok = true;
   res.decisionId = rows[0]!.id;
   res.ledgerSeq = rows[0]!.seq;

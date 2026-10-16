@@ -1,4 +1,14 @@
-import type { ClauseRow, DecisionRow, DelegationRow, GrantRow, HoldsRow, OwnsRow, PolicyId, Tier, VersionRow } from './model.ts';
+import type {
+  ClauseRow,
+  DecisionRow,
+  DelegationRow,
+  GrantRow,
+  HoldsRow,
+  OwnsRow,
+  PolicyId,
+  Tier,
+  VersionRow,
+} from './model.ts';
 
 export const TIER_RANK: Record<Tier, number> = { standard: 1, growth: 2, enterprise: 3 };
 
@@ -6,15 +16,24 @@ const inside = (r: { validFrom: number; validTo: number }, t: number) => r.valid
 
 function evalOp(actual: unknown, op: string, expected: unknown): boolean {
   switch (op) {
-    case 'lte': return (actual as number) <= (expected as number);
-    case 'lt': return (actual as number) < (expected as number);
-    case 'gte': return (actual as number) >= (expected as number);
-    case 'gt': return (actual as number) > (expected as number);
-    case 'eq': return actual === expected;
-    case 'neq': return actual !== expected;
-    case 'in': return (expected as unknown[]).includes(actual);
-    case 'nin': return !(expected as unknown[]).includes(actual);
-    default: return true;
+    case 'lte':
+      return (actual as number) <= (expected as number);
+    case 'lt':
+      return (actual as number) < (expected as number);
+    case 'gte':
+      return (actual as number) >= (expected as number);
+    case 'gt':
+      return (actual as number) > (expected as number);
+    case 'eq':
+      return actual === expected;
+    case 'neq':
+      return actual !== expected;
+    case 'in':
+      return (expected as unknown[]).includes(actual);
+    case 'nin':
+      return !(expected as unknown[]).includes(actual);
+    default:
+      return true;
   }
 }
 
@@ -37,7 +56,8 @@ export class World {
     let cap = 0;
     for (const h of this.holds) {
       if (h.person !== person || !inside(h, t)) continue;
-      for (const g of this.grants) if (g.role === h.role && g.policy === policy && inside(g, t)) cap = Math.max(cap, g.cap);
+      for (const g of this.grants)
+        if (g.role === h.role && g.policy === policy && inside(g, t)) cap = Math.max(cap, g.cap);
     }
     return cap;
   }
@@ -58,7 +78,9 @@ export class World {
 
   delegationCapOf(person: string, agent: string, policy: PolicyId, t: number): number {
     let cap = 0;
-    for (const d of this.delegations) if (d.person === person && d.agent === agent && d.policyId === policy && inside(d, t)) cap = Math.max(cap, d.cap);
+    for (const d of this.delegations)
+      if (d.person === person && d.agent === agent && d.policyId === policy && inside(d, t))
+        cap = Math.max(cap, d.cap);
     return cap;
   }
 
@@ -79,7 +101,10 @@ export class World {
   }
 
   /** Mirror of stare.covers. */
-  covers(p: DecisionRow, f: { policyId: PolicyId; reason: string; tier: Tier; days: number | null; value: number }) {
+  covers(
+    p: DecisionRow,
+    f: { policyId: PolicyId; reason: string; tier: Tier; days: number | null; value: number },
+  ) {
     const pf = p.facts as { reason: string; tier: Tier; days?: number | null };
     const no = { covers: false, partial: false };
     if (p.policyId !== f.policyId || pf.reason !== f.reason) return no;
@@ -134,7 +159,8 @@ export class World {
         const s = this.standing(c.id, t, byId, overturnsOf, memo, stack, depth + 1);
         if (s.flag !== 'green') {
           const chain = [c.id, ...s.chain];
-          if (res.flag === 'green' || chain.length < res.chain.length) res = { flag: 'yellow', chain, codes: ['RESTS_ON_RED'] };
+          if (res.flag === 'green' || chain.length < res.chain.length)
+            res = { flag: 'yellow', chain, codes: ['RESTS_ON_RED'] };
         }
       }
     }

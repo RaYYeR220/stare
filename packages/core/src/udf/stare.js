@@ -62,15 +62,24 @@ function parseFacts(f) {
 
 function evalOp(actual, op, expected) {
   switch (op) {
-    case 'lte': return actual <= expected;
-    case 'lt': return actual < expected;
-    case 'gte': return actual >= expected;
-    case 'gt': return actual > expected;
-    case 'eq': return actual === expected;
-    case 'neq': return actual !== expected;
-    case 'in': return (expected || []).indexOf(actual) >= 0;
-    case 'nin': return (expected || []).indexOf(actual) < 0;
-    default: return true;
+    case 'lte':
+      return actual <= expected;
+    case 'lt':
+      return actual < expected;
+    case 'gte':
+      return actual >= expected;
+    case 'gt':
+      return actual > expected;
+    case 'eq':
+      return actual === expected;
+    case 'neq':
+      return actual !== expected;
+    case 'in':
+      return (expected || []).indexOf(actual) >= 0;
+    case 'nin':
+      return (expected || []).indexOf(actual) < 0;
+    default:
+      return true;
   }
 }
 
@@ -89,7 +98,15 @@ function violations(factsIn, pv) {
   var facts = parseFacts(factsIn);
   var res = { limit: [], default: [] };
   if (!pv) {
-    res.limit.push({ clauseId: '', key: 'no-version', field: null, op: null, value: null, actual: null, unreadable: true });
+    res.limit.push({
+      clauseId: '',
+      key: 'no-version',
+      field: null,
+      op: null,
+      value: null,
+      actual: null,
+      unreadable: true,
+    });
     return res;
   }
   var clauses = out(pv, 'HAS_CLAUSE');
@@ -105,7 +122,13 @@ function violations(factsIn, pv) {
     if (!rule || !rule.field || !rule.op) {
       // A clause we cannot read is treated as violated: never grant on a rule we could not evaluate.
       (kind === 'default' ? res.default : res.limit).push({
-        clauseId: attr(c, 'id', ''), key: attr(c, 'key', ''), field: null, op: null, value: null, actual: null, unreadable: true,
+        clauseId: attr(c, 'id', ''),
+        key: attr(c, 'key', ''),
+        field: null,
+        op: null,
+        value: null,
+        actual: null,
+        unreadable: true,
       });
       continue;
     }
@@ -195,20 +218,30 @@ function authorityProblems(d) {
   var accountId = attr(d, 'accountId', '');
   var problems = [];
   var makers = out(d, 'MADE_BY');
-  if (!makers.length) return [{ code: 'NO_AUTHORITY', detail: 'no decision maker recorded', nodeId: attr(d, 'id', '') }];
+  if (!makers.length)
+    return [{ code: 'NO_AUTHORITY', detail: 'no decision maker recorded', nodeId: attr(d, 'id', '') }];
   var maker = makers[0];
   var person = maker;
   if (hasLabel(maker, 'Agent')) {
     var auth = out(d, 'ON_AUTHORITY_OF');
     if (!auth.length) {
-      return [{ code: 'NO_AUTHORITY', detail: 'agent acted without a delegating person', nodeId: attr(maker, 'id', '') }];
+      return [
+        {
+          code: 'NO_AUTHORITY',
+          detail: 'agent acted without a delegating person',
+          nodeId: attr(maker, 'id', ''),
+        },
+      ];
     }
     person = auth[0];
     var del = delegationAt(person, attr(maker, 'id', ''), policyId, value, at);
     if (!del.ok) {
       problems.push({
         code: 'NO_AUTHORITY',
-        detail: del.cap > 0 ? 'delegation cap ' + del.cap + ' below ' + value : 'no delegation in force at the time',
+        detail:
+          del.cap > 0
+            ? 'delegation cap ' + del.cap + ' below ' + value
+            : 'no delegation in force at the time',
         nodeId: attr(person, 'id', ''),
       });
     }
@@ -240,7 +273,13 @@ function standingOf(d, now, memo, onStack, depth) {
     // A citation loop or an over-deep chain can't be verified: treat as caution, never as good law.
     return {
       flag: 'yellow',
-      reasons: [{ code: 'UNVERIFIABLE', detail: onStack[key] ? 'citation cycle' : 'citation chain deeper than ' + MAX_DEPTH, nodeId: attr(d, 'id', '') }],
+      reasons: [
+        {
+          code: 'UNVERIFIABLE',
+          detail: onStack[key] ? 'citation cycle' : 'citation chain deeper than ' + MAX_DEPTH,
+          nodeId: attr(d, 'id', ''),
+        },
+      ],
       chain: [],
     };
   }
@@ -251,7 +290,11 @@ function standingOf(d, now, memo, onStack, depth) {
   var ov = inEdges(d, 'OVERTURNS');
   for (var i = 0; i < ov.length; i++) {
     if (attr(ov[i], 'at', 0) <= now) {
-      reasons.push({ code: 'OVERTURNED', detail: attr(ov[i], 'reason', ''), nodeId: attr(full(ov[i].source), 'id', '') });
+      reasons.push({
+        code: 'OVERTURNED',
+        detail: attr(ov[i], 'reason', ''),
+        nodeId: attr(full(ov[i].source), 'id', ''),
+      });
     }
   }
 
@@ -265,13 +308,27 @@ function standingOf(d, now, memo, onStack, depth) {
     var policy = policyOf(applied[0]);
     var current = policy ? versionAt(policy, now) : null;
     if (!current) {
-      reasons.push({ code: 'SUPERSEDED', detail: 'no version of the policy is in force', nodeId: attr(applied[0], 'id', '') });
+      reasons.push({
+        code: 'SUPERSEDED',
+        detail: 'no version of the policy is in force',
+        nodeId: attr(applied[0], 'id', ''),
+      });
     } else if (current.id !== applied[0].id) {
       var v = violations(decisionFacts(d), current);
       for (var m = 0; m < v.limit.length; m++) {
         reasons.push({
           code: 'SUPERSEDED',
-          detail: attr(current, 'id', '') + ' ' + v.limit[m].key + ' (' + v.limit[m].field + ' ' + v.limit[m].op + ' ' + JSON.stringify(v.limit[m].value) + ')',
+          detail:
+            attr(current, 'id', '') +
+            ' ' +
+            v.limit[m].key +
+            ' (' +
+            v.limit[m].field +
+            ' ' +
+            v.limit[m].op +
+            ' ' +
+            JSON.stringify(v.limit[m].value) +
+            ')',
           nodeId: v.limit[m].clauseId,
         });
       }
@@ -291,7 +348,13 @@ function standingOf(d, now, memo, onStack, depth) {
         if (result.flag === 'green' || chain.length < result.chain.length) {
           result = {
             flag: 'yellow',
-            reasons: [{ code: 'RESTS_ON_RED', detail: 'cites ' + attr(cited[c], 'id', '') + ' (' + s.flag + ')', nodeId: attr(cited[c], 'id', '') }],
+            reasons: [
+              {
+                code: 'RESTS_ON_RED',
+                detail: 'cites ' + attr(cited[c], 'id', '') + ' (' + s.flag + ')',
+                nodeId: attr(cited[c], 'id', ''),
+              },
+            ],
             chain: chain,
           };
         }
@@ -382,7 +445,13 @@ function scanTerms(terms, labels, relTypes) {
         var s = vals[j].toLowerCase();
         for (var n = 0; n < needles.length; n++) {
           if (s.indexOf(needles[n]) >= 0) {
-            hits.push({ kind: kind, label: label, id: a.id === undefined ? x.id : a.id, key: k, term: needles[n] });
+            hits.push({
+              kind: kind,
+              label: label,
+              id: a.id === undefined ? x.id : a.id,
+              key: k,
+              term: needles[n],
+            });
           }
         }
       }
@@ -401,8 +470,10 @@ function scanTerms(terms, labels, relTypes) {
 
 function sha256(input) {
   var str = unescape(encodeURIComponent(String(input)));
-  function rr(v, a) { return (v >>> a) | (v << (32 - a)); }
-  var maxWord = Math.pow(2, 32);
+  function rr(v, a) {
+    return (v >>> a) | (v << (32 - a));
+  }
+  var maxWord = 2 ** 32;
   var words = [];
   var bitLen = str.length * 8;
   var hash = [];
@@ -412,8 +483,8 @@ function sha256(input) {
   for (var candidate = 2; primeCounter < 64; candidate++) {
     if (!isComposite[candidate]) {
       for (var i = 0; i < 313; i += candidate) isComposite[i] = candidate;
-      hash[primeCounter] = (Math.pow(candidate, 0.5) * maxWord) | 0;
-      k[primeCounter++] = (Math.pow(candidate, 1 / 3) * maxWord) | 0;
+      hash[primeCounter] = (candidate ** 0.5 * maxWord) | 0;
+      k[primeCounter++] = (candidate ** (1 / 3) * maxWord) | 0;
     }
   }
   hash = hash.slice(0, 8);
@@ -430,10 +501,23 @@ function sha256(input) {
     var oldHash = hash;
     hash = hash.slice(0, 8);
     for (i = 0; i < 64; i++) {
-      var w15 = w[i - 15], w2 = w[i - 2];
-      var a = hash[0], e = hash[4];
-      var t1 = hash[7] + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & hash[5]) ^ (~e & hash[6])) + k[i] +
-        (w[i] = i < 16 ? w[i] : (w[i - 16] + (rr(w15, 7) ^ rr(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rr(w2, 17) ^ rr(w2, 19) ^ (w2 >>> 10))) | 0);
+      var w15 = w[i - 15],
+        w2 = w[i - 2];
+      var a = hash[0],
+        e = hash[4];
+      var t1 =
+        hash[7] +
+        (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) +
+        ((e & hash[5]) ^ (~e & hash[6])) +
+        k[i] +
+        (w[i] =
+          i < 16
+            ? w[i]
+            : (w[i - 16] +
+                (rr(w15, 7) ^ rr(w15, 18) ^ (w15 >>> 3)) +
+                w[i - 7] +
+                (rr(w2, 17) ^ rr(w2, 19) ^ (w2 >>> 10))) |
+              0);
       var t2 = (rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
       hash = [(t1 + t2) | 0].concat(hash);
       hash[4] = (hash[4] + t1) | 0;

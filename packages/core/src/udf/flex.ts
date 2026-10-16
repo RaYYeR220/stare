@@ -9,7 +9,11 @@ export const FLEX_VERSION = '1.0.1';
 export const FLEX_URL = `https://github.com/FalkorDB/flex/releases/download/${FLEX_VERSION}/flex.js`;
 export const FLEX_SHA256 = 'e7e833ba87f88c1e31913b58bb9bdeab231714f8af4b43b437d84277ee653ece';
 
-const defaultCache = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../.cache', `flex-${FLEX_VERSION}.js`);
+const defaultCache = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../../.cache',
+  `flex-${FLEX_VERSION}.js`,
+);
 
 export async function flexSource(cachePath = process.env.STARE_FLEX_PATH ?? defaultCache): Promise<string> {
   let src: string;

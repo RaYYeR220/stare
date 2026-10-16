@@ -1,4 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { ANCHOR, buildNorthwind, seedGraph } from '../../seed/src/index.ts';
+import { copyGraph } from '../src/copy.ts';
 import { connect, Db } from '../src/db.ts';
 import { HashEmbedder } from '../src/embed.ts';
 import { decide, type EngineCtx } from '../src/engine/decide.ts';
@@ -7,8 +9,6 @@ import type { DecideRequest, Verdict } from '../src/engine/types.ts';
 import { verifyLedger } from '../src/ledger.ts';
 import { HeuristicLlm } from '../src/llm.ts';
 import { fixedClock } from '../src/time.ts';
-import { copyGraph } from '../src/copy.ts';
-import { ANCHOR, buildNorthwind, seedGraph } from '../../seed/src/index.ts';
 import { adminClient, freshDb, TEST_URL } from './helpers.ts';
 
 const nw = buildNorthwind();
@@ -26,16 +26,23 @@ async function ctxFor(): Promise<EngineCtx> {
   const admin = await adminClient();
   const name = `${base}-c${++n}`;
   await copyGraph(admin, base, name);
-  return { db: new Db(admin, name), llm: new HeuristicLlm(nw.accounts.map((a) => a.name)), embedder: new HashEmbedder(32), clock: fixedClock(NOW) };
+  return {
+    db: new Db(admin, name),
+    llm: new HeuristicLlm(nw.accounts.map((a) => a.name)),
+    embedder: new HashEmbedder(32),
+    clock: fixedClock(NOW),
+  };
 }
 
-const agentFor = (ch: string) => (ch.includes('deal') ? 'a-renewals' : ch.includes('billing') ? 'a-billing' : 'a-support');
+const agentFor = (ch: string) =>
+  ch.includes('deal') ? 'a-renewals' : ch.includes('billing') ? 'a-billing' : 'a-support';
 const inbox = (id: string): DecideRequest => {
   const item = nw.inbox.find((i) => i.id === id)!;
   return { principal: { kind: 'agent', id: agentFor(item.channel) }, text: item.text, channel: item.channel };
 };
 const run = async (id: string, ctx?: EngineCtx) => decide(ctx ?? (await ctxFor()), inbox(id));
-const flagOf = (v: Verdict, account: string) => v.candidates.find((c) => c.account === account)?.standing.flag;
+const flagOf = (v: Verdict, account: string) =>
+  v.candidates.find((c) => c.account === account)?.standing.flag;
 
 describe('decide() on Northwind Cloud', () => {
   it('hero: counter-offers on good law instead of following the lookalike that rests on an unauthorized approval', async () => {
@@ -123,7 +130,9 @@ describe('decide() on Northwind Cloud', () => {
   it('never acts on a delegation from someone who owns the account', async () => {
     const ctx = await ctxFor();
     // Make Priya (the support agent's main delegator) the owner of Harbor City Transit.
-    await ctx.db.rw("MATCH (p:Person {id:'p-priya'}), (a:Account {name:'Harbor City Transit'}) CREATE (p)-[:OWNS {validFrom:0, validTo:253402300799000}]->(a)");
+    await ctx.db.rw(
+      "MATCH (p:Person {id:'p-priya'}), (a:Account {name:'Harbor City Transit'}) CREATE (p)-[:OWNS {validFrom:0, validTo:253402300799000}]->(a)",
+    );
     const v = await decide(ctx, inbox('in-northstar-like'));
     expect(v.delegation?.name).not.toBe('Priya Raman');
     expect(v.outcome).not.toBe('approved');
@@ -131,10 +140,20 @@ describe('decide() on Northwind Cloud', () => {
 
   it('the commit re-checks the delegation inside the write (revoked between plan and commit)', async () => {
     const ctx = await ctxFor();
-    const slow = { ...ctx, embedder: { ...ctx.embedder, model: 'x', dim: 32, embed: async (t: string[]) => {
-      await ctx.db.rw("MATCH (:Person {id:'p-priya'})-[d:DELEGATES]->(:Agent {id:'a-support'}) SET d.validTo = 0");
-      return new HashEmbedder(32).embed(t);
-    } } };
+    const slow = {
+      ...ctx,
+      embedder: {
+        ...ctx.embedder,
+        model: 'x',
+        dim: 32,
+        embed: async (t: string[]) => {
+          await ctx.db.rw(
+            "MATCH (:Person {id:'p-priya'})-[d:DELEGATES]->(:Agent {id:'a-support'}) SET d.validTo = 0",
+          );
+          return new HashEmbedder(32).embed(t);
+        },
+      },
+    };
     const v = await decide(slow, inbox('in-northstar-like'));
     expect(v.outcome).not.toBe('approved');
     expect(v.decisionId).toBeNull();
@@ -156,10 +175,14 @@ describe('decide() on Northwind Cloud', () => {
     expect(again.decisionId).toBe(first.decisionId);
     expect(again.refusal?.code).toBe('REPLAY');
     const clients = await Promise.all(Array.from({ length: 8 }, () => connect({ url: TEST_URL })));
-    const out = await Promise.all(clients.map((c) => decide({ ...ctx, db: new Db(c, ctx.db.graphName) }, { ...req, key: 'k-2' })));
+    const out = await Promise.all(
+      clients.map((c) => decide({ ...ctx, db: new Db(c, ctx.db.graphName) }, { ...req, key: 'k-2' })),
+    );
     await Promise.all(clients.map((c) => c.close()));
     expect(new Set(out.map((o) => o.decisionId)).size).toBe(1);
-    const [row] = await ctx.db.ro<{ n: number }>("MATCH (d:Decision)-[:DECIDES]->(c:Case {key:'k-2'}) RETURN count(d) AS n");
+    const [row] = await ctx.db.ro<{ n: number }>(
+      "MATCH (d:Decision)-[:DECIDES]->(c:Case {key:'k-2'}) RETURN count(d) AS n",
+    );
     expect(row!.n).toBe(1);
   });
 
@@ -168,12 +191,16 @@ describe('decide() on Northwind Cloud', () => {
     await ctx.db.rw("MATCH (b:Budget {id:'budget-refunds-2026q4'}) SET b.remaining = 2500");
     const reqs = Array.from({ length: 6 }, (_, i) => ({ ...inbox('in-northstar-like'), key: `b-${i}` }));
     const clients = await Promise.all(reqs.map(() => connect({ url: TEST_URL })));
-    const out = await Promise.all(reqs.map((r, i) => decide({ ...ctx, db: new Db(clients[i]!, ctx.db.graphName) }, r)));
+    const out = await Promise.all(
+      reqs.map((r, i) => decide({ ...ctx, db: new Db(clients[i]!, ctx.db.graphName) }, r)),
+    );
     await Promise.all(clients.map((c) => c.close()));
     const approved = out.filter((o) => o.outcome === 'approved');
     expect(approved.length).toBe(1);
     expect(out.filter((o) => o.refusal?.code === 'BUDGET_EXHAUSTED').length).toBe(5);
-    const [b] = await ctx.db.ro<{ r: number }>("MATCH (b:Budget {id:'budget-refunds-2026q4'}) RETURN b.remaining AS r");
+    const [b] = await ctx.db.ro<{ r: number }>(
+      "MATCH (b:Budget {id:'budget-refunds-2026q4'}) RETURN b.remaining AS r",
+    );
     expect(b!.r).toBe(600);
   });
 
@@ -189,7 +216,8 @@ describe('decide() on Northwind Cloud', () => {
 
   it('keeps the ledger verifiable after live decisions', async () => {
     const ctx = await ctxFor();
-    for (const id of ['in-acme-outage', 'in-churn-yellow', 'in-goodwill', 'in-duplicate']) await decide(ctx, inbox(id));
+    for (const id of ['in-acme-outage', 'in-churn-yellow', 'in-goodwill', 'in-duplicate'])
+      await decide(ctx, inbox(id));
     const v = await verifyLedger(ctx.db, { deep: true });
     expect(v.ok).toBe(true);
   });
@@ -197,7 +225,13 @@ describe('decide() on Northwind Cloud', () => {
   it('records the exact Cypher that ran, by name', async () => {
     const v = await run('in-acme-outage');
     const names = v.trace.map((t) => t.name);
-    for (const q of ['engine.resolveAccount', 'engine.policyNow', 'engine.delegation', 'engine.evaluateCandidates', 'engine.commitDecision']) {
+    for (const q of [
+      'engine.resolveAccount',
+      'engine.policyNow',
+      'engine.delegation',
+      'engine.evaluateCandidates',
+      'engine.commitDecision',
+    ]) {
       expect(names).toContain(q);
     }
   });
@@ -207,8 +241,12 @@ describe('explanation gate', () => {
   it('rejects a model explanation that names someone or something outside the trace', async () => {
     const v = await decide(await ctxFor(), { ...inbox('in-acme-outage'), dryRun: true });
     const allowed = ['Acme Logistics', 'Fernway Travel', 'Ana Ruiz', 'Priya Raman', 'Bluefin Analytics'];
-    expect(gateExplanation('We can offer $1,200 to Acme Logistics, following Fernway Travel.', v, allowed).ok).toBe(true);
-    expect(gateExplanation('Approved because Dana Whitfield said so.', v, allowed).offending).toEqual(['Dana Whitfield']);
+    expect(
+      gateExplanation('We can offer $1,200 to Acme Logistics, following Fernway Travel.', v, allowed).ok,
+    ).toBe(true);
+    expect(gateExplanation('Approved because Dana Whitfield said so.', v, allowed).offending).toEqual([
+      'Dana Whitfield',
+    ]);
     expect(gateExplanation('We refunded $1,750 to Acme Logistics.', v, allowed).ok).toBe(false);
   });
 });
@@ -217,7 +255,20 @@ describe('entity resolution', () => {
   it('matches typos but not lookalike companies from another tenant', async () => {
     const ctx = await ctxFor();
     const resolve = async (name: string) =>
-      (await decide(ctx, { principal: { kind: 'agent', id: 'a-support' }, intake: { policyId: 'refunds', accountName: name, value: 300, days: 10, reason: 'billing_error', claims: [] }, dryRun: true })).account?.name ?? null;
+      (
+        await decide(ctx, {
+          principal: { kind: 'agent', id: 'a-support' },
+          intake: {
+            policyId: 'refunds',
+            accountName: name,
+            value: 300,
+            days: 10,
+            reason: 'billing_error',
+            claims: [],
+          },
+          dryRun: true,
+        })
+      ).account?.name ?? null;
     expect(await resolve('Acme Logistcs')).toBe('Acme Logistics');
     expect(await resolve('acme logistics')).toBe('Acme Logistics');
     expect(await resolve('Acme Logistic GmbH')).toBeNull();

@@ -8,14 +8,15 @@
   },
   "scripts": {
     "db:test": "sh scripts/db-test.sh",
-    "test": "vitest run",
+    "test": "sh scripts/db-test.sh && vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b",
     "lint": "biome check .",
     "format": "biome format --write .",
     "seed": "pnpm --filter @stare/seed seed",
     "docs": "tsx scripts/gen-docs.ts",
-    "eval": "pnpm --filter @stare/eval run"
+    "eval": "pnpm --filter @stare/eval run",
+    "test:only": "vitest run"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

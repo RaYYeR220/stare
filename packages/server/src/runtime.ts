@@ -1,7 +1,16 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
-  connect, createSandbox, Db, dropSandbox, type EngineCtx, type Principal, rawCommand, sweepSandboxes, systemClock, templateOf,
+  connect,
+  createSandbox,
+  Db,
+  dropSandbox,
+  type EngineCtx,
+  type Principal,
+  rawCommand,
+  sweepSandboxes,
+  systemClock,
+  templateOf,
 } from '@stare/core';
 import { CachedEmbedder, modelsFromEnv } from '@stare/llm';
 import type { FalkorDB } from 'falkordb';
@@ -28,7 +37,8 @@ export function configFromEnv(env = process.env): Config {
     sandboxTtlMs: Number(env.STARE_SANDBOX_TTL_MS ?? 2 * 3600e3),
     maxSandboxes: Number(env.STARE_MAX_SANDBOXES ?? 150),
     port: Number(env.PORT ?? 8787),
-    embedCache: env.STARE_EMBED_CACHE ?? fileURLToPath(new URL('../../seed/data/embeddings.json', import.meta.url)),
+    embedCache:
+      env.STARE_EMBED_CACHE ?? fileURLToPath(new URL('../../seed/data/embeddings.json', import.meta.url)),
   };
 }
 
@@ -49,7 +59,11 @@ export function signToken(secret: string, g: Grant): string {
   return `stare.${body}.${mac}`;
 }
 
-export function verifyToken(secret: string, token: string | undefined | null, now = Date.now()): Grant | null {
+export function verifyToken(
+  secret: string,
+  token: string | undefined | null,
+  now = Date.now(),
+): Grant | null {
   if (!token) return null;
   const [p, body, mac] = token.split('.');
   if (p !== 'stare' || !body || !mac) return null;
@@ -60,7 +74,12 @@ export function verifyToken(secret: string, token: string | undefined | null, no
     const g = JSON.parse(Buffer.from(body, 'base64url').toString()) as Grant;
     if (typeof g.exp !== 'number' || g.exp <= now) return null;
     if (!/^[a-f0-9]{12}$/.test(g.sbx)) return null;
-    if (!g.principal || !['agent', 'person'].includes(g.principal.kind) || !/^[a-z]-[a-z0-9-]+$/.test(g.principal.id)) return null;
+    if (
+      !g.principal ||
+      !['agent', 'person'].includes(g.principal.kind) ||
+      !/^[a-z]-[a-z0-9-]+$/.test(g.principal.id)
+    )
+      return null;
     return g;
   } catch {
     return null;
@@ -100,16 +119,55 @@ export class Runtime {
   selfMcpUrl: string;
 
   constructor(readonly cfg: Config) {
-    this.embedder = new CachedEmbedder(this.models.offline ? null : this.models.embedder, cfg.embedCache, 'text-embedding-qwen3-0-6b', 512);
+    this.embedder = new CachedEmbedder(
+      this.models.offline ? null : this.models.embedder,
+      cfg.embedCache,
+      'text-embedding-qwen3-0-6b',
+      512,
+    );
     this.selfMcpUrl = process.env.STARE_SELF_MCP_URL ?? `http://127.0.0.1:${cfg.port}/mcp`;
   }
 
   async start() {
-    this.admin = await connect({ url: this.cfg.falkorUrl, username: this.cfg.adminUser, password: this.cfg.adminPassword });
+    this.admin = await connect({
+      url: this.cfg.falkorUrl,
+      username: this.cfg.adminUser,
+      password: this.cfg.adminPassword,
+      reconnect: true,
+    });
     this.sweeper = setInterval(() => void this.sweep(), 60_000);
+    this.watchdog = setInterval(() => void this.heal(), 30_000);
+  }
+
+  /** Called after a database restart is detected (ACL users and UDF libraries live in memory). */
+  onRestart?: () => Promise<void>;
+  private watchdog?: NodeJS.Timeout;
+  private healing = false;
+
+  /**
+   * FalkorDB keeps ACL users and UDF libraries in memory. If the database restarted, provision them
+   * again, and forget sandboxes whose users are gone (their visitors simply open a new desk).
+   */
+  async heal() {
+    if (this.healing) return;
+    this.healing = true;
+    try {
+      const probe = await rawCommand(this.admin, ['ACL', 'GETUSER', 't_northwind']).catch(() => 'error');
+      if (probe === null && this.onRestart) {
+        console.log('[stare] database restart detected; provisioning again');
+        await this.onRestart();
+        for (const [id, s] of this.sandboxes) {
+          await s.client?.close().catch(() => {});
+          this.sandboxes.delete(id);
+        }
+      }
+    } finally {
+      this.healing = false;
+    }
   }
 
   async stop() {
+    clearInterval(this.watchdog);
     clearInterval(this.sweeper);
     for (const s of this.sandboxes.values()) await s.client?.close().catch(() => {});
     await this.admin?.close().catch(() => {});
@@ -132,10 +190,16 @@ export class Runtime {
   }
 
   async openSandbox(tenant = 'northwind'): Promise<{ id: string; expiresAt: number }> {
-    if ((await this.activeSandboxes()) >= this.cfg.maxSandboxes) throw new DeskFullError('the desk is full right now; try again in a few minutes');
+    if ((await this.activeSandboxes()) >= this.cfg.maxSandboxes)
+      throw new DeskFullError('the desk is full right now; try again in a few minutes');
     const s = await createSandbox(this.admin, templateOf(tenant), this.cfg.sandboxTtlMs);
     this.sandboxes.set(s.id, { graph: s.graph, user: s.user, password: s.password, expiresAt: s.expiresAt });
-    await rawCommand(this.admin, ['HSET', REGISTRY, s.id, JSON.stringify({ graph: s.graph, user: s.user, password: s.password, expiresAt: s.expiresAt })]);
+    await rawCommand(this.admin, [
+      'HSET',
+      REGISTRY,
+      s.id,
+      JSON.stringify({ graph: s.graph, user: s.user, password: s.password, expiresAt: s.expiresAt }),
+    ]);
     return { id: s.id, expiresAt: s.expiresAt };
   }
 
@@ -156,7 +220,15 @@ export class Runtime {
       this.sandboxes.set(id, s);
     }
     if (s.expiresAt <= Date.now()) return null;
-    if (!s.client) s.client = await connect({ url: this.cfg.falkorUrl, username: s.user, password: s.password });
+    if (!s.client) {
+      try {
+        s.client = await connect({ url: this.cfg.falkorUrl, username: s.user, password: s.password, reconnect: true });
+      } catch {
+        // the sandbox user no longer exists (e.g. after a database restart): the desk is gone
+        this.sandboxes.delete(id);
+        return null;
+      }
+    }
     return s;
   }
 
@@ -164,7 +236,13 @@ export class Runtime {
   async ctx(id: string): Promise<EngineCtx | null> {
     const s = await this.sandbox(id);
     if (!s) return null;
-    return { db: new Db(s.client!, s.graph), llm: this.models.llm, embedder: this.embedder, clock: systemClock, modelExplanations: !this.models.offline };
+    return {
+      db: new Db(s.client!, s.graph),
+      llm: this.models.llm,
+      embedder: this.embedder,
+      clock: systemClock,
+      modelExplanations: !this.models.offline,
+    };
   }
 
   sandboxCreds(id: string) {

@@ -4,9 +4,32 @@ export const EMBED_DIM_DEFAULT = 512;
 
 /** Labels looked up by `id`. Each gets an exact-match range index. */
 const ID_LABELS = [
-  'Person', 'Team', 'Role', 'Agent', 'Account', 'Contact', 'Salt', 'Source', 'Span', 'Fact', 'Ticket', 'Incident',
-  'Policy', 'PolicyVersion', 'Clause', 'Case', 'Decision', 'Escalation', 'Budget', 'Reason', 'LedgerHead',
-  'LedgerEntry', 'Episode', 'StandingRule', 'Handoff', 'Erasure',
+  'Person',
+  'Team',
+  'Role',
+  'Agent',
+  'Account',
+  'Contact',
+  'Salt',
+  'Source',
+  'Span',
+  'Fact',
+  'Ticket',
+  'Incident',
+  'Policy',
+  'PolicyVersion',
+  'Clause',
+  'Case',
+  'Decision',
+  'Escalation',
+  'Budget',
+  'Reason',
+  'LedgerHead',
+  'LedgerEntry',
+  'Episode',
+  'StandingRule',
+  'Handoff',
+  'Erasure',
 ];
 
 const UNIQUE: Array<[string, string]> = [

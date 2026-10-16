@@ -110,7 +110,8 @@ export const inbox: InboxItem[] = [
     channel: '#deal-desk',
     from: 'p-ethan',
     text: 'Lumen Retail needs 18% off again for the renewal, competitor pressure.',
-    expect: 'Ethan’s own approval for this account is red (conflict) and is never cited; good-law precedent from others decides',
+    expect:
+      'Ethan’s own approval for this account is red (conflict) and is never cited; good-law precedent from others decides',
   },
   {
     id: 'in-terms-45',

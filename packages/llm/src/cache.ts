@@ -31,7 +31,10 @@ export class CachedEmbedder implements Embedder {
   async embed(texts: string[]): Promise<number[][]> {
     const missing = [...new Set(texts.filter((t) => !this.cache[this.key(t)]))];
     if (missing.length) {
-      if (!this.inner) throw new Error(`${missing.length} text(s) not in the embedding cache and no embedding model configured`);
+      if (!this.inner)
+        throw new Error(
+          `${missing.length} text(s) not in the embedding cache and no embedding model configured`,
+        );
       const vecs = await this.inner.embed(missing);
       missing.forEach((t, i) => {
         this.cache[this.key(t)] = Buffer.from(new Float32Array(vecs[i]!).buffer).toString('base64');

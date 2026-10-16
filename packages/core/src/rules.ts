@@ -5,7 +5,12 @@ import { fmtValue } from './engine/template.ts';
 import type { PolicyId } from './engine/types.ts';
 import { LEDGER_HEAD, ledgerParams, ledgerWrite } from './ledger.ts';
 
-const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({ name, mode, doc, cypher: cypher.trim() });
+const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({
+  name,
+  mode,
+  doc,
+  cypher: cypher.trim(),
+});
 const TIERS = ['standard', 'growth', 'enterprise'] as const;
 export const MIN_BASIS = 3;
 
@@ -21,7 +26,12 @@ WITH d, r, stare.standing(d, $now).flag AS flag
 WHERE flag = 'green'
 RETURN d.id AS id, d.policyId AS policyId, r.code AS reason, d.facts AS facts, d.value AS value, d.at AS at`,
   ),
-  existing: q('rules.existing', 'ro', 'Standing rules already proposed or ratified.', `MATCH (s:StandingRule) RETURN s.id AS id, s.policyId AS policyId, s.reasonCode AS reason, s.tiers AS tiers, s.status AS status`),
+  existing: q(
+    'rules.existing',
+    'ro',
+    'Standing rules already proposed or ratified.',
+    `MATCH (s:StandingRule) RETURN s.id AS id, s.policyId AS policyId, s.reasonCode AS reason, s.tiers AS tiers, s.status AS status`,
+  ),
   create: q(
     'rules.propose',
     'rw',
@@ -80,9 +90,17 @@ ORDER BY s.createdAt`,
 } as const;
 
 const REASON_TEXT: Record<string, string> = {
-  outage: 'service outages', billing_error: 'billing errors', duplicate_charge: 'duplicate charges', churn_risk: 'churn risk',
-  competitive: 'competitive matches', multi_year: 'multi-year commitments', expansion: 'seat expansions', nonprofit: 'nonprofits',
-  procurement_cycle: 'procurement-cycle terms', public_sector: 'public-sector statutes', cash_flow: 'cash-flow requests',
+  outage: 'service outages',
+  billing_error: 'billing errors',
+  duplicate_charge: 'duplicate charges',
+  churn_risk: 'churn risk',
+  competitive: 'competitive matches',
+  multi_year: 'multi-year commitments',
+  expansion: 'seat expansions',
+  nonprofit: 'nonprofits',
+  procurement_cycle: 'procurement-cycle terms',
+  public_sector: 'public-sector statutes',
+  cash_flow: 'cash-flow requests',
 };
 
 /**
@@ -91,8 +109,17 @@ const REASON_TEXT: Record<string, string> = {
  */
 export async function proposeRules(ctx: EngineCtx): Promise<string[]> {
   const now = ctx.clock.now();
-  const rows = await ctx.db.ro<{ id: string; policyId: PolicyId; reason: string; facts: string; value: number; at: number }>(RULE_QUERIES.shapes, { now });
-  const existing = await ctx.db.ro<{ policyId: string; reason: string; tiers: string[]; status: string }>(RULE_QUERIES.existing);
+  const rows = await ctx.db.ro<{
+    id: string;
+    policyId: PolicyId;
+    reason: string;
+    facts: string;
+    value: number;
+    at: number;
+  }>(RULE_QUERIES.shapes, { now });
+  const existing = await ctx.db.ro<{ policyId: string; reason: string; tiers: string[]; status: string }>(
+    RULE_QUERIES.existing,
+  );
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
     const tier = (JSON.parse(r.facts || '{}').tier ?? '') as string;
@@ -104,25 +131,55 @@ export async function proposeRules(ctx: EngineCtx): Promise<string[]> {
   for (const [k, ds] of groups) {
     if (ds.length < MIN_BASIS) continue;
     const [policyId, reason, tier] = k.split('|') as [PolicyId, string, string];
-    if (existing.some((e) => e.policyId === policyId && e.reason === reason && e.tiers.includes(tier) && e.status !== 'quarantined')) continue;
+    if (
+      existing.some(
+        (e) =>
+          e.policyId === policyId &&
+          e.reason === reason &&
+          e.tiers.includes(tier) &&
+          e.status !== 'quarantined',
+      )
+    )
+      continue;
     const basis = ds.sort((a, b) => b.at - a.at).slice(0, 5);
     const maxValue = Math.min(...basis.map((d) => d.value));
     const tiers = TIERS.slice(TIERS.indexOf(tier as (typeof TIERS)[number]));
     const id = `rule-${policyId}-${reason}-${tier}-${randomBytes(2).toString('hex')}`;
     const text = `${policyId === 'refunds' ? 'Refunds' : policyId === 'discounts' ? 'Discounts' : 'Extended terms'} for ${REASON_TEXT[reason] ?? reason}, ${tiers.join(' and ')} accounts, up to ${fmtValue(policyId, maxValue)}.`;
-    await ctx.db.rw(RULE_QUERIES.create, { id, policyId, reason, tiers: [...tiers], maxValue, now, text, basis: basis.map((d) => d.id) });
+    await ctx.db.rw(RULE_QUERIES.create, {
+      id,
+      policyId,
+      reason,
+      tiers: [...tiers],
+      maxValue,
+      now,
+      text,
+      basis: basis.map((d) => d.id),
+    });
     created.push(id);
     existing.push({ policyId, reason, tiers: [...tiers], status: 'proposed' });
   }
   return created;
 }
 
-export async function ratifyRule(ctx: EngineCtx, ruleId: string, personId: string): Promise<{ ok: boolean; ledgerSeq: number | null; refusal: string | null }> {
+export async function ratifyRule(
+  ctx: EngineCtx,
+  ruleId: string,
+  personId: string,
+): Promise<{ ok: boolean; ledgerSeq: number | null; refusal: string | null }> {
   const now = ctx.clock.now();
   const { rows } = await ctx.db.rw<{ id: string; seq: number }>(RULE_QUERIES.ratify, {
-    ruleId, personId, now, ...ledgerParams('rule', ruleId, now, { status: 'ratified', ratifiedBy: personId }),
+    ruleId,
+    personId,
+    now,
+    ...ledgerParams('rule', ruleId, now, { status: 'ratified', ratifiedBy: personId }),
   });
-  if (!rows.length) return { ok: false, ledgerSeq: null, refusal: 'not proposed, basis no longer good law, or the ratifier lacks authority for its ceiling' };
+  if (!rows.length)
+    return {
+      ok: false,
+      ledgerSeq: null,
+      refusal: 'not proposed, basis no longer good law, or the ratifier lacks authority for its ceiling',
+    };
   return { ok: true, ledgerSeq: rows[0]!.seq, refusal: null };
 }
 

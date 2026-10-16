@@ -77,7 +77,10 @@ export class HeuristicLlm implements Llm {
       }
     }
     const lower = text.toLowerCase();
-    let accountName = this.knownAccounts.filter((a) => lower.includes(a.toLowerCase())).sort((a, b) => b.length - a.length)[0] ?? null;
+    let accountName =
+      this.knownAccounts
+        .filter((a) => lower.includes(a.toLowerCase()))
+        .sort((a, b) => b.length - a.length)[0] ?? null;
     if (!accountName) {
       const m = text.match(/^\s*(?:[A-Z][\w&'.-]*\s?){1,4}/);
       accountName = m ? m[0].trim().replace(/\s+(is|wants|has|will|needs|procurement|asks?)$/i, '') : null;

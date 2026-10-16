@@ -33,13 +33,20 @@ export interface ConnectOptions {
   url: string;
   username?: string;
   password?: string;
+  /** Long-lived connections reconnect with backoff; short-lived ones (probes, tests) fail fast. */
+  reconnect?: boolean;
 }
 
 export async function connect(opts: ConnectOptions): Promise<FalkorDB> {
   const u = new URL(opts.url.replace(/^falkors?:/, 'redis:'));
   const tls = opts.url.startsWith('falkors:');
   return FalkorDB.connect({
-    socket: { host: u.hostname, port: Number(u.port || 6379), ...(tls ? { tls: true } : {}), reconnectStrategy: false } as any,
+    socket: {
+      host: u.hostname,
+      port: Number(u.port || 6379),
+      ...(tls ? { tls: true } : {}),
+      reconnectStrategy: opts.reconnect ? (retries: number) => Math.min(250 * 2 ** retries, 5000) : false,
+    } as any,
     username: opts.username || decodeURIComponent(u.username) || undefined,
     password: opts.password || decodeURIComponent(u.password) || undefined,
   });
@@ -86,7 +93,14 @@ export class Db {
     const t0 = performance.now();
     const res = await this.graph.roQuery<T>(nq.cypher, { params: params as any });
     const rows = (res.data ?? []) as T[];
-    this.recorder?.push({ name: nq.name, mode: 'ro', cypher: nq.cypher, params, ms: performance.now() - t0, rows: rows.length });
+    this.recorder?.push({
+      name: nq.name,
+      mode: 'ro',
+      cypher: nq.cypher,
+      params,
+      ms: performance.now() - t0,
+      rows: rows.length,
+    });
     return rows;
   }
 
@@ -99,7 +113,15 @@ export class Db {
     const res = await this.graph.query<T>(nq.cypher, { params: params as any });
     const rows = (res.data ?? []) as T[];
     const stats = parseStats((res as any).metadata);
-    this.recorder?.push({ name: nq.name, mode: 'rw', cypher: nq.cypher, params, ms: performance.now() - t0, rows: rows.length, stats });
+    this.recorder?.push({
+      name: nq.name,
+      mode: 'rw',
+      cypher: nq.cypher,
+      params,
+      ms: performance.now() - t0,
+      rows: rows.length,
+      stats,
+    });
     return { rows, stats };
   }
 }

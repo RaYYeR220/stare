@@ -1,6 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import {
-  applySchema, type Db, type Embedder, LEDGER_HEAD, ledgerParams, ledgerWrite, Q_LEDGER_INIT, sha256Hex,
+  applySchema,
+  type Db,
+  type Embedder,
+  LEDGER_HEAD,
+  ledgerParams,
+  ledgerWrite,
+  Q_LEDGER_INIT,
+  sha256Hex,
 } from '@stare/core';
 import type { DecisionRow, TenantData } from './model.ts';
 
@@ -8,7 +15,10 @@ const BATCH = 200;
 
 async function unwind(db: Db, rows: unknown[], cypher: string, name: string) {
   for (let i = 0; i < rows.length; i += BATCH) {
-    await db.rw({ name: `seed.${name}`, mode: 'rw', doc: `Seed: ${name}`, cypher: `UNWIND $rows AS r\n${cypher}` }, { rows: rows.slice(i, i + BATCH) });
+    await db.rw(
+      { name: `seed.${name}`, mode: 'rw', doc: `Seed: ${name}`, cypher: `UNWIND $rows AS r\n${cypher}` },
+      { rows: rows.slice(i, i + BATCH) },
+    );
   }
 }
 
@@ -42,26 +52,60 @@ export interface SeedOptions {
   skipSchema?: boolean;
 }
 
-export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promise<{ salts: Map<string, string> }> {
+export async function seedGraph(
+  db: Db,
+  t: TenantData,
+  opts: SeedOptions,
+): Promise<{ salts: Map<string, string> }> {
   const log = opts.log ?? (() => {});
   const now = opts.now ?? Date.now();
   if (!opts.skipSchema) await applySchema(db, opts.embedder.dim);
 
   log('org');
   await unwind(db, t.teams, 'CREATE (:Team {id:r.id, name:r.name})', 'teams');
-  await unwind(db, t.people, 'CREATE (:Person {id:r.id, name:r.name, email:r.email, title:r.title, joinedAt:r.joinedAt, leftAt:r.leftAt})', 'people');
-  await unwind(db, t.members, 'MATCH (p:Person {id:r.person}), (x:Team {id:r.team}) CREATE (p)-[:MEMBER_OF {validFrom:r.validFrom, validTo:r.validTo}]->(x)', 'members');
+  await unwind(
+    db,
+    t.people,
+    'CREATE (:Person {id:r.id, name:r.name, email:r.email, title:r.title, joinedAt:r.joinedAt, leftAt:r.leftAt})',
+    'people',
+  );
+  await unwind(
+    db,
+    t.members,
+    'MATCH (p:Person {id:r.person}), (x:Team {id:r.team}) CREATE (p)-[:MEMBER_OF {validFrom:r.validFrom, validTo:r.validTo}]->(x)',
+    'members',
+  );
   await unwind(db, t.roles, 'CREATE (:Role {id:r.id, name:r.name})', 'roles');
-  await unwind(db, t.holds, 'MATCH (p:Person {id:r.person}), (x:Role {id:r.role}) CREATE (p)-[:HOLDS {validFrom:r.validFrom, validTo:r.validTo}]->(x)', 'holds');
+  await unwind(
+    db,
+    t.holds,
+    'MATCH (p:Person {id:r.person}), (x:Role {id:r.role}) CREATE (p)-[:HOLDS {validFrom:r.validFrom, validTo:r.validTo}]->(x)',
+    'holds',
+  );
   await unwind(
     db,
     t.reports.map((r) => ({ ...r, dead: r.validTo <= now ? 1 : 0 })),
     'MATCH (p:Person {id:r.person}), (m:Person {id:r.manager}) CREATE (p)-[:REPORTS_TO {validFrom:r.validFrom, validTo:r.validTo, w:1, dead:r.dead}]->(m)',
     'reports',
   );
-  await unwind(db, t.policies, 'CREATE (:Policy {id:r.id, name:r.name, unit:r.unit, owner:r.owner})', 'policies');
-  await unwind(db, t.grants, 'MATCH (x:Role {id:r.role}), (p:Policy {id:r.policy}) CREATE (x)-[:MAY_APPROVE {cap:r.cap, validFrom:r.validFrom, validTo:r.validTo}]->(p)', 'grants');
-  await unwind(db, t.agents, 'CREATE (:Agent {id:r.id, name:r.name, kind:r.kind, policyId:r.policyId, deployedAt:r.deployedAt})', 'agents');
+  await unwind(
+    db,
+    t.policies,
+    'CREATE (:Policy {id:r.id, name:r.name, unit:r.unit, owner:r.owner})',
+    'policies',
+  );
+  await unwind(
+    db,
+    t.grants,
+    'MATCH (x:Role {id:r.role}), (p:Policy {id:r.policy}) CREATE (x)-[:MAY_APPROVE {cap:r.cap, validFrom:r.validFrom, validTo:r.validTo}]->(p)',
+    'grants',
+  );
+  await unwind(
+    db,
+    t.agents,
+    'CREATE (:Agent {id:r.id, name:r.name, kind:r.kind, policyId:r.policyId, deployedAt:r.deployedAt})',
+    'agents',
+  );
   await unwind(
     db,
     t.delegations,
@@ -85,7 +129,12 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
      CREATE (c)-[:SALTED_BY]->(:Salt {id:'salt-' + r.id, value:r.salt})`,
     'contacts',
   );
-  await unwind(db, t.owns, 'MATCH (p:Person {id:r.person}), (a:Account {id:r.account}) CREATE (p)-[:OWNS {validFrom:r.validFrom, validTo:r.validTo}]->(a)', 'owns');
+  await unwind(
+    db,
+    t.owns,
+    'MATCH (p:Person {id:r.person}), (a:Account {id:r.account}) CREATE (p)-[:OWNS {validFrom:r.validFrom, validTo:r.validTo}]->(a)',
+    'owns',
+  );
 
   log('policy versions');
   await unwind(
@@ -97,7 +146,9 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
   );
   await unwind(
     db,
-    t.versions.filter((v) => v.version > 1).map((v) => ({ id: v.id, prev: `${v.policyId}-v${v.version - 1}` })),
+    t.versions
+      .filter((v) => v.version > 1)
+      .map((v) => ({ id: v.id, prev: `${v.policyId}-v${v.version - 1}` })),
     'MATCH (v:PolicyVersion {id:r.id}), (p:PolicyVersion {id:r.prev}) CREATE (v)-[:SUPERSEDES]->(p)',
     'supersedes',
   );
@@ -116,13 +167,20 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
      WITH i, r UNWIND r.accounts AS aid MATCH (a:Account {id:aid}) CREATE (i)-[:AFFECTED]->(a)`,
     'incidents',
   );
-  await unwind(db, t.sources, 'CREATE (:Source {id:r.id, kind:r.kind, title:r.title, channel:r.channel, at:r.at})', 'sources');
+  await unwind(
+    db,
+    t.sources,
+    'CREATE (:Source {id:r.id, kind:r.kind, title:r.title, channel:r.channel, at:r.at})',
+    'sources',
+  );
 
   log('embeddings');
-  const decisionText = (d: DecisionRow) => `${d.narrative}\n${t.cases.find((c) => c.id === d.caseId)?.text ?? ''}`;
+  const decisionText = (d: DecisionRow) =>
+    `${d.narrative}\n${t.cases.find((c) => c.id === d.caseId)?.text ?? ''}`;
   const embed = async (texts: string[]) => {
     const out: number[][] = [];
-    for (let i = 0; i < texts.length; i += 64) out.push(...(await opts.embedder.embed(texts.slice(i, i + 64))));
+    for (let i = 0; i < texts.length; i += 64)
+      out.push(...(await opts.embedder.embed(texts.slice(i, i + 64))));
     return out;
   };
   const spanVec = await embed(t.spans.map((s) => s.text));
@@ -155,7 +213,12 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
 
   log('cases + decisions');
   const reasons = [...new Set([...t.cases.map((c) => c.reason), ...t.decisions.map((d) => d.reason)])];
-  await unwind(db, reasons.map((code) => ({ code })), "CREATE (:Reason {id:'reason-' + r.code, code:r.code})", 'reasons');
+  await unwind(
+    db,
+    reasons.map((code) => ({ code })),
+    "CREATE (:Reason {id:'reason-' + r.code, code:r.code})",
+    'reasons',
+  );
   await unwind(
     db,
     t.cases,
@@ -174,7 +237,12 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
   );
   await unwind(
     db,
-    t.decisions.map((d, i) => ({ ...d, facts: JSON.stringify(d.facts), emb: decVec[i], exception: d.basis !== 'routine' && d.outcome !== 'denied' })),
+    t.decisions.map((d, i) => ({
+      ...d,
+      facts: JSON.stringify(d.facts),
+      emb: decVec[i],
+      exception: d.basis !== 'routine' && d.outcome !== 'denied',
+    })),
     `MATCH (c:Case {id:r.caseId}), (pv:PolicyVersion {id:r.policyVersionId}), (m {id:r.madeBy}), (a:Account {id:r.accountId}), (rs:Reason {code:r.reason})
      WHERE m:Person OR m:Agent
      CREATE (d:Decision {id:r.id, caseId:r.caseId, outcome:r.outcome, value:r.value, basis:r.basis, at:r.at, policyId:r.policyId,
@@ -184,7 +252,12 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
      FOREACH (_ IN CASE WHEN r.exception THEN [1] ELSE [] END | SET d:Exception)`,
     'decisions',
   );
-  await unwind(db, t.decisions.filter((d) => d.onAuthorityOf), 'MATCH (d:Decision {id:r.id}), (p:Person {id:r.onAuthorityOf}) CREATE (d)-[:ON_AUTHORITY_OF]->(p)', 'on-authority');
+  await unwind(
+    db,
+    t.decisions.filter((d) => d.onAuthorityOf),
+    'MATCH (d:Decision {id:r.id}), (p:Person {id:r.onAuthorityOf}) CREATE (d)-[:ON_AUTHORITY_OF]->(p)',
+    'on-authority',
+  );
   await unwind(
     db,
     t.decisions.flatMap((d) => d.groundedIn.map((s) => ({ d: d.id, s }))),
@@ -199,7 +272,9 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
   );
   await unwind(
     db,
-    t.decisions.filter((d) => d.overturns).map((d) => ({ d: d.id, target: d.overturns!.id, reason: d.overturns!.reason, at: d.at })),
+    t.decisions
+      .filter((d) => d.overturns)
+      .map((d) => ({ d: d.id, target: d.overturns!.id, reason: d.overturns!.reason, at: d.at })),
     'MATCH (d:Decision {id:r.d}), (x:Decision {id:r.target}) CREATE (d)-[:OVERTURNS {reason:r.reason, at:r.at}]->(x)',
     'overturns',
   );
@@ -263,14 +338,50 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
   log('ledger');
   await db.rw(Q_LEDGER_INIT);
   const contactOfCase = new Map(t.cases.map((c) => [c.id, c.contactId]));
-  type Ev = { at: number; kind: 'policy' | 'decision' | 'rule'; id: string; payload: Record<string, unknown>; label: string };
+  type Ev = {
+    at: number;
+    kind: 'policy' | 'decision' | 'rule';
+    id: string;
+    payload: Record<string, unknown>;
+    label: string;
+  };
   const events: Ev[] = [
-    ...t.versions.map((v) => ({ at: v.effectiveFrom, kind: 'policy' as const, id: v.id, label: 'PolicyVersion', payload: { policyId: v.policyId, version: v.version, effectiveFrom: v.effectiveFrom, textHash: sha256Hex(v.text) } })),
+    ...t.versions.map((v) => ({
+      at: v.effectiveFrom,
+      kind: 'policy' as const,
+      id: v.id,
+      label: 'PolicyVersion',
+      payload: {
+        policyId: v.policyId,
+        version: v.version,
+        effectiveFrom: v.effectiveFrom,
+        textHash: sha256Hex(v.text),
+      },
+    })),
     ...t.decisions.map((d) => {
       const cid = contactOfCase.get(d.caseId);
-      return { at: d.at, kind: 'decision' as const, id: d.id, label: 'Decision', payload: decisionLedgerPayload(d, cid ? subjectCommitment(salts.get(cid)!, cid) : null) };
+      return {
+        at: d.at,
+        kind: 'decision' as const,
+        id: d.id,
+        label: 'Decision',
+        payload: decisionLedgerPayload(d, cid ? subjectCommitment(salts.get(cid)!, cid) : null),
+      };
     }),
-    ...t.rules.filter((r) => r.ratifiedAt).map((r) => ({ at: r.ratifiedAt!, kind: 'rule' as const, id: r.id, label: 'StandingRule', payload: { status: 'ratified', ratifiedBy: r.ratifiedBy, maxValue: r.maxValue, derivedFrom: r.derivedFrom } })),
+    ...t.rules
+      .filter((r) => r.ratifiedAt)
+      .map((r) => ({
+        at: r.ratifiedAt!,
+        kind: 'rule' as const,
+        id: r.id,
+        label: 'StandingRule',
+        payload: {
+          status: 'ratified',
+          ratifiedBy: r.ratifiedBy,
+          maxValue: r.maxValue,
+          derivedFrom: r.derivedFrom,
+        },
+      })),
   ].sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
   for (const e of events) {
     await db.rw(

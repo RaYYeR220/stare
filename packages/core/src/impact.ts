@@ -8,7 +8,12 @@ import { LEDGER_HEAD, ledgerParams, ledgerWrite, sha256Hex } from './ledger.ts';
 import { quarantineRules } from './rules.ts';
 import { FOREVER } from './time.ts';
 
-const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({ name, mode, doc, cypher: cypher.trim() });
+const q = (name: string, mode: 'ro' | 'rw', doc: string, cypher: string): NamedQuery => ({
+  name,
+  mode,
+  doc,
+  cypher: cypher.trim(),
+});
 
 export interface DraftClause {
   key: string;
@@ -132,7 +137,10 @@ export interface FlagMap {
 }
 
 export async function flagsAt(db: Db, now: number): Promise<FlagMap> {
-  const [row] = await db.ro<{ flags: { id: string; flag: string; reasons: { code: string }[] }[] }>(IMPACT_QUERIES.flags, { now });
+  const [row] = await db.ro<{ flags: { id: string; flag: string; reasons: { code: string }[] }[] }>(
+    IMPACT_QUERIES.flags,
+    { now },
+  );
   const out: FlagMap = {};
   for (const f of row?.flags ?? []) out[f.id] = { flag: f.flag, codes: f.reasons.map((r) => r.code) };
   return out;
@@ -150,16 +158,35 @@ export interface ImpactReport {
   ms: number;
 }
 
-const AGENT_FOR: Record<PolicyId, string> = { refunds: 'a-support', discounts: 'a-renewals', payment_terms: 'a-billing' };
+const AGENT_FOR: Record<PolicyId, string> = {
+  refunds: 'a-support',
+  discounts: 'a-renewals',
+  payment_terms: 'a-billing',
+};
 
-async function autonomy(ctx: EngineCtx, db: Db, policyId: PolicyId, cases: { account: string; value: number; days: number | null; reason: string }[]) {
+async function autonomy(
+  ctx: EngineCtx,
+  db: Db,
+  policyId: PolicyId,
+  cases: { account: string; value: number; days: number | null; reason: string }[],
+) {
   let auto = 0;
   for (const c of cases) {
-    const v: Verdict = await decide({ ...ctx, db }, {
-      principal: { kind: 'agent', id: AGENT_FOR[policyId] },
-      intake: { policyId, accountName: c.account, value: c.value, days: c.days, reason: c.reason, claims: [] },
-      dryRun: true,
-    });
+    const v: Verdict = await decide(
+      { ...ctx, db },
+      {
+        principal: { kind: 'agent', id: AGENT_FOR[policyId] },
+        intake: {
+          policyId,
+          accountName: c.account,
+          value: c.value,
+          days: c.days,
+          reason: c.reason,
+          claims: [],
+        },
+        dryRun: true,
+      },
+    );
     if (v.outcome === 'approved' || v.outcome === 'counter') auto++;
   }
   return cases.length ? Math.round((auto / cases.length) * 1000) / 10 : 0;
@@ -170,21 +197,33 @@ async function autonomy(ctx: EngineCtx, db: Db, policyId: PolicyId, cases: { acc
  * being good law, which standing rules get quarantined, and how much autonomy the agents lose.
  * The live graph is never touched; the copy is dropped afterwards.
  */
-export async function policyImpact(admin: FalkorDB, ctx: EngineCtx, draft: PolicyDraft, opts: { replay?: number } = {}): Promise<ImpactReport> {
+export async function policyImpact(
+  admin: FalkorDB,
+  ctx: EngineCtx,
+  draft: PolicyDraft,
+  opts: { replay?: number } = {},
+): Promise<ImpactReport> {
   const t0 = performance.now();
   const now = ctx.clock.now();
   const whatIf = `${ctx.db.graphName}:whatif:${randomBytes(4).toString('hex')}`;
   await copyGraph(admin, ctx.db.graphName, whatIf);
   const sim = new Db(ctx.db.client, whatIf, ctx.db.recorder);
   try {
-    const cases = await ctx.db.ro<{ account: string; value: number; days: number | null; reason: string }>(IMPACT_QUERIES.replayCases, { policyId: draft.policyId, limit: opts.replay ?? 30 });
+    const cases = await ctx.db.ro<{ account: string; value: number; days: number | null; reason: string }>(
+      IMPACT_QUERIES.replayCases,
+      { policyId: draft.policyId, limit: opts.replay ?? 30 },
+    );
     const before = await flagsAt(ctx.db, now);
-    const rulesBefore = await ctx.db.ro<{ id: string; text: string; status: string }>(IMPACT_QUERIES.rules, { now });
+    const rulesBefore = await ctx.db.ro<{ id: string; text: string; status: string }>(IMPACT_QUERIES.rules, {
+      now,
+    });
     const autoBefore = await autonomy(ctx, ctx.db, draft.policyId, cases);
 
     await sim.rw(IMPACT_QUERIES.adopt, adoptParams(draft, now));
     const after = await flagsAt(sim, now + 1);
-    const rulesAfter = await sim.ro<{ id: string; text: string; status: string }>(IMPACT_QUERIES.rules, { now: now + 1 });
+    const rulesAfter = await sim.ro<{ id: string; text: string; status: string }>(IMPACT_QUERIES.rules, {
+      now: now + 1,
+    });
     const autoAfter = await autonomy({ ...ctx, clock: { now: () => now + 1 } }, sim, draft.policyId, cases);
 
     const trans = new Map<string, string[]>();
@@ -194,22 +233,39 @@ export async function policyImpact(admin: FalkorDB, ctx: EngineCtx, draft: Polic
       const k = `${b.flag}→${a.flag}`;
       trans.set(k, [...(trans.get(k) ?? []), id]);
     }
-    const values = await sim.ro<{ id: string; value: number }>('MATCH (d:Decision) RETURN d.id AS id, d.value AS value');
-    const valueOf = new Map(values.map((x) => [x.id, x.value]));
+    const values = await sim.ro<{ id: string; value: number }>(
+      'MATCH (d:Decision) RETURN d.id AS id, d.value AS value',
+    );
+    const valueById = new Map(values.map((x) => [x.id, x.value]));
     const red = [...trans.entries()].filter(([k]) => k.endsWith('→red')).flatMap(([, ids]) => ids);
     return {
       policyId: draft.policyId,
       whatIfGraph: whatIf,
-      transitions: [...trans.entries()].map(([k, ids]) => ({ from: k.split('→')[0]!, to: k.split('→')[1]!, count: ids.length, ids })),
+      transitions: [...trans.entries()].map(([k, ids]) => ({
+        from: k.split('→')[0]!,
+        to: k.split('→')[1]!,
+        count: ids.length,
+        ids,
+      })),
       becameRed: red.length,
-      becameYellow: [...trans.entries()].filter(([k]) => k.endsWith('→yellow')).reduce((s, [, ids]) => s + ids.length, 0),
-      rulesQuarantined: rulesAfter.filter((r) => r.status === 'quarantined' && rulesBefore.find((x) => x.id === r.id)?.status !== 'quarantined').map((r) => ({ id: r.id, text: r.text })),
+      becameYellow: [...trans.entries()]
+        .filter(([k]) => k.endsWith('→yellow'))
+        .reduce((s, [, ids]) => s + ids.length, 0),
+      rulesQuarantined: rulesAfter
+        .filter(
+          (r) =>
+            r.status === 'quarantined' && rulesBefore.find((x) => x.id === r.id)?.status !== 'quarantined',
+        )
+        .map((r) => ({ id: r.id, text: r.text })),
       autonomy: { before: autoBefore, after: autoAfter, sample: cases.length },
-      exposure: red.reduce((s, id) => s + (valueOf.get(id) ?? 0), 0),
+      exposure: red.reduce((s, id) => s + (valueById.get(id) ?? 0), 0),
       ms: Math.round(performance.now() - t0),
     };
   } finally {
-    await admin.selectGraph(whatIf).delete().catch(() => {});
+    await admin
+      .selectGraph(whatIf)
+      .delete()
+      .catch(() => {});
   }
 }
 
@@ -223,25 +279,47 @@ function adoptParams(draft: PolicyDraft, now: number) {
     forever: FOREVER,
     text,
     clauses: draft.clauses.map((c) => ({ ...c, rule: JSON.stringify(c.rule) })),
-    ...ledgerParams('policy', versionId, now, { policyId: draft.policyId, textHash: sha256Hex(text), note: draft.note ?? null }),
+    ...ledgerParams('policy', versionId, now, {
+      policyId: draft.policyId,
+      textHash: sha256Hex(text),
+      note: draft.note ?? null,
+    }),
   };
 }
 
 export async function adoptPolicy(ctx: EngineCtx, draft: PolicyDraft) {
   const now = ctx.clock.now();
-  const { rows } = await ctx.db.rw<{ id: string; version: number; seq: number }>(IMPACT_QUERIES.adopt, adoptParams(draft, now));
+  const { rows } = await ctx.db.rw<{ id: string; version: number; seq: number }>(
+    IMPACT_QUERIES.adopt,
+    adoptParams(draft, now),
+  );
   const quarantined = await quarantineRules(ctx.db, now + 1);
-  return { versionId: rows[0]?.id ?? null, version: rows[0]?.version ?? null, ledgerSeq: rows[0]?.seq ?? null, quarantined };
+  return {
+    versionId: rows[0]?.id ?? null,
+    version: rows[0]?.version ?? null,
+    ledgerSeq: rows[0]?.seq ?? null,
+    quarantined,
+  };
 }
 
 export async function draftFromCurrent(ctx: EngineCtx, policyId: PolicyId): Promise<PolicyDraft> {
-  const rows = await ctx.db.ro<{ key: string; kind: 'default' | 'limit'; text: string; rule: string }>(IMPACT_QUERIES.currentClauses, { policyId, now: ctx.clock.now() });
-  return { policyId, clauses: rows.map((r) => ({ key: r.key, kind: r.kind, text: r.text, rule: JSON.parse(r.rule) })) };
+  const rows = await ctx.db.ro<{ key: string; kind: 'default' | 'limit'; text: string; rule: string }>(
+    IMPACT_QUERIES.currentClauses,
+    { policyId, now: ctx.clock.now() },
+  );
+  return {
+    policyId,
+    clauses: rows.map((r) => ({ key: r.key, kind: r.kind, text: r.text, rule: JSON.parse(r.rule) })),
+  };
 }
 
 export async function departPerson(ctx: EngineCtx, personId: string) {
   const at = ctx.clock.now();
-  const { rows } = await ctx.db.rw<{ id: string; seq: number }>(IMPACT_QUERIES.depart, { personId, at, ...ledgerParams('departure', personId, at, { personId }) });
+  const { rows } = await ctx.db.rw<{ id: string; seq: number }>(IMPACT_QUERIES.depart, {
+    personId,
+    at,
+    ...ledgerParams('departure', personId, at, { personId }),
+  });
   return { ok: rows.length > 0, ledgerSeq: rows[0]?.seq ?? null };
 }
 
@@ -249,17 +327,39 @@ export async function overturnDecision(ctx: EngineCtx, targetId: string, personI
   const now = ctx.clock.now();
   const decisionId = `dec-${randomBytes(5).toString('hex')}`;
   const caseId = `case-${randomBytes(5).toString('hex')}`;
-  const [target] = await ctx.db.ro<{ pv: string; accountId: string }>('MATCH (x:Decision {id:$id}) RETURN x.policyVersionId AS pv, x.accountId AS accountId', { id: targetId });
+  const [target] = await ctx.db.ro<{ pv: string; accountId: string }>(
+    'MATCH (x:Decision {id:$id}) RETURN x.policyVersionId AS pv, x.accountId AS accountId',
+    { id: targetId },
+  );
   if (!target) return { ok: false, decisionId: null, affected: [], quarantined: [] };
   const payload = {
-    caseId, outcome: 'denied', value: 0, basis: 'human', policyVersionId: target.pv, madeBy: personId, at: now, onAuthorityOf: null,
-    accountId: target.accountId, cites: [], subjectCommitment: null, overturns: targetId, reasonHash: sha256Hex(reason),
+    caseId,
+    outcome: 'denied',
+    value: 0,
+    basis: 'human',
+    policyVersionId: target.pv,
+    madeBy: personId,
+    at: now,
+    onAuthorityOf: null,
+    accountId: target.accountId,
+    cites: [],
+    subjectCommitment: null,
+    overturns: targetId,
+    reasonHash: sha256Hex(reason),
   };
   const { rows } = await ctx.db.rw<{ id: string; seq: number }>(IMPACT_QUERIES.overturn, {
-    targetId, personId, reason, now, decisionId, caseId, ...ledgerParams('decision', decisionId, now, payload),
+    targetId,
+    personId,
+    reason,
+    now,
+    decisionId,
+    caseId,
+    ...ledgerParams('decision', decisionId, now, payload),
   });
   if (!rows.length) return { ok: false, decisionId: null, affected: [], quarantined: [] };
-  const affected = (await ctx.db.ro<{ id: string }>(IMPACT_QUERIES.citedBy, { id: targetId })).map((r) => r.id);
+  const affected = (await ctx.db.ro<{ id: string }>(IMPACT_QUERIES.citedBy, { id: targetId })).map(
+    (r) => r.id,
+  );
   const quarantined = await quarantineRules(ctx.db, now + 1);
   return { ok: true, decisionId: rows[0]!.id, ledgerSeq: rows[0]!.seq, affected, quarantined };
 }
