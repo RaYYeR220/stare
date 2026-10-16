@@ -212,3 +212,17 @@ describe('explanation gate', () => {
     expect(gateExplanation('We refunded $1,750 to Acme Logistics.', v, allowed).ok).toBe(false);
   });
 });
+
+describe('entity resolution', () => {
+  it('matches typos but not lookalike companies from another tenant', async () => {
+    const ctx = await ctxFor();
+    const resolve = async (name: string) =>
+      (await decide(ctx, { principal: { kind: 'agent', id: 'a-support' }, intake: { policyId: 'refunds', accountName: name, value: 300, days: 10, reason: 'billing_error', claims: [] }, dryRun: true })).account?.name ?? null;
+    expect(await resolve('Acme Logistcs')).toBe('Acme Logistics');
+    expect(await resolve('acme logistics')).toBe('Acme Logistics');
+    expect(await resolve('Acme Logistic GmbH')).toBeNull();
+    expect(await resolve('Kestrel Foods Europe')).toBeNull();
+    expect(await resolve('Northstar Robotic Systems')).toBeNull();
+    expect(await resolve('Initech')).toBeNull();
+  });
+});

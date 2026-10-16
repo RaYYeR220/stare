@@ -8,10 +8,15 @@ export const Q = {
   resolveAccount: q(
     'engine.resolveAccount',
     'ro',
-    'Resolve a free-text account name against the graph (exact, else FLEX Jaro-Winkler). No match means "not in the graph".',
+    'Resolve a free-text account name against the graph: exact, else FLEX Jaro-Winkler on the whole name AND token by token (a typo matches; an extra word like "GmbH" or "Europe" names a different company). No match means "not in the graph".',
     `
 MATCH (a:Account)
-WITH a, CASE WHEN toLower(a.name) = toLower($name) THEN 1.0 ELSE flex.text.jaroWinkler(toLower(a.name), toLower($name)) END AS score
+WITH a, toLower(a.name) AS n, toLower($name) AS q
+WITH a, n, q, split(n, ' ') AS nt, split(q, ' ') AS qt
+WITH a, CASE WHEN n = q THEN 1.0
+             WHEN size(nt) <> size(qt) THEN 0.0
+             WHEN all(i IN range(0, size(nt) - 1) WHERE flex.text.jaroWinkler(nt[i], qt[i]) >= 0.88) THEN flex.text.jaroWinkler(n, q)
+             ELSE 0.0 END AS score
 WHERE score >= $threshold
 OPTIONAL MATCH (o:Person)-[ow:OWNS]->(a) WHERE ow.validFrom <= $now AND $now < ow.validTo
 RETURN a.id AS id, a.name AS name, a.tier AS tier, a.status AS status, score, o.id AS ownerId, o.name AS ownerName
