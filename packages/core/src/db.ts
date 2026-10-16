@@ -40,7 +40,7 @@ export interface ConnectOptions {
 export async function connect(opts: ConnectOptions): Promise<FalkorDB> {
   const u = new URL(opts.url.replace(/^falkors?:/, 'redis:'));
   const tls = opts.url.startsWith('falkors:');
-  return FalkorDB.connect({
+  const client = await FalkorDB.connect({
     socket: {
       host: u.hostname,
       port: Number(u.port || 6379),
@@ -50,6 +50,11 @@ export async function connect(opts: ConnectOptions): Promise<FalkorDB> {
     username: opts.username || decodeURIComponent(u.username) || undefined,
     password: opts.password || decodeURIComponent(u.password) || undefined,
   });
+  // Connection errors surface on the next query; without a listener they would crash the process.
+  client.on('error', (e: Error) => {
+    if (opts.reconnect) console.warn(`[stare] falkordb connection: ${e.message}`);
+  });
+  return client;
 }
 
 function parseStats(metadata: unknown): Record<string, string> {
