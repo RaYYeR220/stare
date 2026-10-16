@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalJson, ledgerParams, Q_LEDGER_APPEND_STANDALONE, Q_LEDGER_INIT, verifyLedger } from '../src/ledger.ts';
+import { canonicalJson, LEDGER_HEAD, ledgerParams, ledgerWrite, Q_LEDGER_APPEND_STANDALONE, Q_LEDGER_INIT, verifyLedger } from '../src/ledger.ts';
 import { connect, Db } from '../src/db.ts';
 import { freshDb, TEST_URL } from './helpers.ts';
 
@@ -16,6 +16,36 @@ describe('ledger', () => {
     expect(await verifyLedger(db)).toMatchObject({ ok: true, length: 3 });
     await db.rw(`MATCH (e:LedgerEntry {seq:2}) SET e.payload = replace(e.payload, '"value":1', '"value":9')`);
     expect(await verifyLedger(db)).toMatchObject({ ok: false, brokenAt: 2, reason: 'payload does not match its hash' });
+  });
+
+  it('fails closed without a ledger head: nothing is written', async () => {
+    const db = await freshDb('ledger-nohead');
+    const { stats } = await db.rw(
+      `${LEDGER_HEAD} CREATE (d:Decision {id:'X', caseId:'X'}) ${ledgerWrite(['d'])} RETURN d.id AS id`,
+      ledgerParams('decision', 'X', 1, {}),
+    );
+    expect(stats['Nodes created']).toBeUndefined();
+    expect(await db.ro('MATCH (d:Decision) RETURN d')).toEqual([]);
+  });
+
+  it('deep check catches a decision edited after the fact, and one written outside the ledger', async () => {
+    const db = await freshDb('ledger-deep');
+    await db.rw(Q_LEDGER_INIT);
+    await db.rw(`CREATE (:Agent {id:'ag'})`);
+    const payload = { caseId: 'C1', outcome: 'approved', value: 900, basis: 'precedent', policyVersionId: 'refunds-v3', madeBy: 'ag', at: 5 };
+    await db.rw(
+      `${LEDGER_HEAD} MATCH (ag:Agent {id:'ag'})
+       CREATE (d:Decision {id:'D1', caseId:'C1', outcome:'approved', value:900, basis:'precedent', policyVersionId:'refunds-v3', at:5})-[:MADE_BY]->(ag)
+       ${ledgerWrite(['d'])} RETURN d.id AS id`,
+      ledgerParams('decision', 'D1', 5, payload),
+    );
+    expect(await verifyLedger(db, { deep: true })).toMatchObject({ ok: true, decisionsChecked: 1 });
+    await db.rw(`MATCH (d:Decision {id:'D1'}) SET d.value = 9000`);
+    const v = await verifyLedger(db, { deep: true });
+    expect(v.ok).toBe(false);
+    expect(v.mismatched).toEqual([{ id: 'D1', field: 'value', ledger: 900, live: 9000 }]);
+    await db.rw(`CREATE (:Decision {id:'D2', caseId:'C2'})`);
+    expect((await verifyLedger(db, { deep: true })).unrecorded).toEqual(['D2']);
   });
 
   it('64 concurrent appends from 16 connections never fork', async () => {
