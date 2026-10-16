@@ -54,12 +54,12 @@ RETURN f.id AS id, f.text AS text, f.embedding AS embedding, support`,
   touched: q(
     'erasure.touched',
     'ro',
-    'Decisions, cases and episodes grounded in the affected messages or naming the subject.',
+    'Decisions, cases, episodes, facts and handoff notes grounded in the affected messages or naming the subject.',
     `
-MATCH (n) WHERE (n:Decision OR n:Case OR n:Episode OR n:Fact)
+MATCH (n) WHERE (n:Decision OR n:Case OR n:Episode OR n:Fact OR n:Handoff)
 OPTIONAL MATCH (n)-[g:GROUNDED_IN|FROM]->(s:Span) WHERE s.id IN $spanIds
 WITH n, count(g) AS grounded,
-     CASE WHEN n:Decision THEN n.narrative WHEN n:Case THEN n.text WHEN n:Episode THEN n.summary ELSE n.text END AS txt
+     CASE WHEN n:Decision THEN n.narrative WHEN n:Case THEN n.text WHEN n:Episode THEN n.summary WHEN n:Handoff THEN n.note ELSE n.text END AS txt
 WHERE grounded > 0 OR any(t IN $terms WHERE toLower(coalesce(txt, '')) CONTAINS toLower(t))
 RETURN n.id AS id, labels(n)[0] AS label, txt AS text, n.embedding AS embedding`,
   ),
@@ -76,8 +76,9 @@ RETURN n.id AS id, labels(n)[0] AS label, txt AS text, n.embedding AS embedding`
     'Rewrite redacted text and its embedding in place (structure, authority and citations are kept).',
     `
 UNWIND $rows AS r
-MATCH (n {id:r.id}) WHERE n:Decision OR n:Case OR n:Episode OR n:Fact
+MATCH (n {id:r.id}) WHERE n:Decision OR n:Case OR n:Episode OR n:Fact OR n:Handoff
 FOREACH (x IN CASE WHEN n:Decision THEN [n] ELSE [] END | SET x.narrative = r.text)
+FOREACH (x IN CASE WHEN n:Handoff THEN [n] ELSE [] END | SET x.note = r.text)
 FOREACH (x IN CASE WHEN n:Case OR n:Fact THEN [n] ELSE [] END | SET x.text = r.text)
 FOREACH (x IN CASE WHEN n:Episode THEN [n] ELSE [] END | SET x.summary = r.text)
 FOREACH (x IN CASE WHEN r.vec IS NULL THEN [] ELSE [n] END | SET x.embedding = vecf32(r.vec))

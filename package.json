@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.0",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "db:test": "sh scripts/db-test.sh",
     "test": "vitest run",
@@ -15,6 +17,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@types/node": "^24.0.0",
+    "dotenv": "16.6.1",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vitest": "5.0.5"

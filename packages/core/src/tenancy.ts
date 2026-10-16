@@ -13,6 +13,12 @@ const SANDBOX_PREFIX = 'stare:sbx:';
 const REGISTRY = 'stare:sandboxes';
 
 const slug = /^[a-z0-9-]{2,40}$/;
+/** Tenant ids that would let a key pattern reach system graphs (templates, sandboxes, registry). */
+const RESERVED = new Set(['tpl', 'sbx', 'sys', 'sandboxes', 'registry', 'test', 'admin', 'whatif', 'control']);
+
+export function assertTenantId(tenant: string) {
+  if (!slug.test(tenant) || RESERVED.has(tenant) || tenant.startsWith('test')) throw new Error(`bad or reserved tenant id ${tenant}`);
+}
 
 export interface Credentials {
   user: string;
@@ -25,7 +31,7 @@ export interface Credentials {
  * The database itself refuses any other graph: NOPERM, logged in ACL LOG.
  */
 export async function provisionTenantUser(admin: FalkorDB, tenant: string, opts: { readOnly?: boolean; password?: string; user?: string } = {}): Promise<Credentials> {
-  if (!slug.test(tenant)) throw new Error(`bad tenant id ${tenant}`);
+  assertTenantId(tenant);
   const user = opts.user ?? `${opts.readOnly ? 'ro' : 't'}_${tenant}`;
   const password = opts.password ?? randomBytes(24).toString('hex');
   const graph = graphOf(tenant);
