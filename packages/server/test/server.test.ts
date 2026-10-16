@@ -57,12 +57,12 @@ const api = (token: string) => async (path: string, init: RequestInit = {}) => {
   return { status: r.status, body: (await r.json().catch(() => null)) as any };
 };
 
-async function mcpClient(token: string, onElicit?: (msg: string) => Record<string, unknown> | null) {
+async function mcpClient(token: string, onElicit?: (msg: string) => Record<string, string | number | boolean> | null) {
   const client = new Client({ name: 'test', version: '1.0.0' }, { capabilities: { elicitation: { form: {} } }, versionNegotiation: { mode: 'auto' } });
   if (onElicit) {
     client.setRequestHandler('elicitation/create', async (req: { params: { message: string } }) => {
       const content = onElicit(req.params.message);
-      return content ? { action: 'accept', content } : { action: 'decline' };
+      return content ? { action: 'accept' as const, content: content as Record<string, string | number | boolean> } : { action: 'decline' as const };
     });
   }
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
