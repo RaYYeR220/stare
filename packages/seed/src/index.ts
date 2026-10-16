@@ -4,3 +4,4 @@ export { buildGlobex } from './globex.ts';
 export { seedGraph, subjectCommitment, decisionLedgerPayload } from './load.ts';
 export { World } from './world.ts';
 export { ANCHOR } from './northwind/org.ts';
+export { EMBED_CACHE } from './cli.ts';

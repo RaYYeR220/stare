@@ -173,7 +173,7 @@ export async function decide(ctx: EngineCtx, req: DecideRequest): Promise<Verdic
   if (!committed) {
     // A check inside the write failed (budget spent, precedent changed, policy changed, or a concurrent duplicate).
     const [existing] = await db.ro<{ id: string }>(Q.existingDecision, { caseId: v.caseId });
-    if (existing) return replay(db, v, { id: v.caseId!, status: 'decided', created: false, decisionId: existing.id, escalationId: null }, finish);
+    if (existing) return replay(db, v, { id: v.caseId!, status: 'decided', decisionId: existing.id, escalationId: null }, finish);
     const [b] = await db.ro<{ remaining: number }>(Q.budget, { policyId, now });
     v.outcome = 'escalated';
     v.basis = 'none';

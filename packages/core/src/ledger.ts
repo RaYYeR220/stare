@@ -21,13 +21,13 @@ export function canonicalJson(x: unknown): string {
     .join(',')}}`;
 }
 
-export interface LedgerParams {
+export type LedgerParams = {
   ledgerKind: LedgerKind;
   ledgerRefId: string;
   ledgerPayload: string;
   ledgerPayloadHash: string;
   ledgerAt: number;
-}
+};
 
 /** Parameters for an append; the payload must already be free of personal data (commitments only). */
 export function ledgerParams(kind: LedgerKind, refId: string, at: number, payload: Record<string, unknown>): LedgerParams {
