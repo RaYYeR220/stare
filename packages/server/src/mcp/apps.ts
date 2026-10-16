@@ -26,14 +26,15 @@ function appBundle(): string {
 }
 
 const STYLE = `
-:root{--ground:#eaebe4;--paper:#f7f7f3;--ink:#121410;--muted:#5a5d53;--rule:rgba(18,20,16,.12);--red:#cf3a1f;--yellow:#e6b31e;--green:#1e7a4c;--blue:#2b5fae}
-@media (prefers-color-scheme:dark){:root{--ground:#121410;--paper:#1b1d18;--ink:#eceee6;--muted:#a2a59a;--rule:rgba(236,238,230,.12);--red:#e2583c;--yellow:#e8c14c;--green:#67b383;--blue:#7ea3df}}
-*{box-sizing:border-box}body{margin:0;background:var(--ground);color:var(--ink);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px}
-h1{font-size:18px;letter-spacing:-.01em;margin:0 0 4px}.muted{color:var(--muted)}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
-.card{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:14px;margin:10px 0}
-.flag{display:inline-flex;align-items:center;gap:6px;font-weight:600}.g{color:var(--green)}.y{color:var(--yellow)}.r{color:var(--red)}
-.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--rule)}.row:first-child{border-top:0}
-.pill{border:1px solid var(--rule);border-radius:999px;padding:2px 8px;font-size:12px}.check{display:flex;gap:10px;padding:6px 0}
+:root{--ground:#2a0f12;--raised:#3e1519;--ink:#ece3d2;--muted:#c4b59b;--rule:rgba(236,227,210,.14);--gold:#c6a04c;--red:#e2583c;--yellow:#e8c14c;--green:#67b383;--blue:#7ea3df}
+*{box-sizing:border-box}body{margin:0;background:var(--ground);color:var(--ink);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding:18px}
+h1{font:300 22px/1.2 "Newsreader",Georgia,"Times New Roman",serif;letter-spacing:-.02em;margin:0 0 6px}
+.muted{color:var(--muted)}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.card{background:var(--raised);border-top:1px solid var(--gold);padding:12px 14px;margin:12px 0}
+.card>b{font:600 11px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.flag{display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap}.g{color:var(--green)}.y{color:var(--yellow)}.r{color:var(--red)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--rule)}.card>.row:first-of-type{border-top:0}
+.check{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--rule)}
 `;
 
 const GLYPH = `function glyph(f){return f==='green'?'<span class="flag g">◆ good law</span>':f==='yellow'?'<span class="flag y">▲ overruling risk</span>':'<span class="flag r">⬣ not good law</span>'}
