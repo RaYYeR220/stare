@@ -1,0 +1,674 @@
+{
+ "E001": {
+  "expected": "approved",
+  "value": 280,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E002": {
+  "expected": "approved",
+  "value": 320,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E003": {
+  "expected": "approved",
+  "value": 560,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E004": {
+  "expected": "approved",
+  "value": 190,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E005": {
+  "expected": "approved",
+  "value": 410,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E006": {
+  "expected": "approved",
+  "value": 520,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E007": {
+  "expected": "approved",
+  "value": 470,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E008": {
+  "expected": "approved",
+  "value": 660,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E009": {
+  "expected": "approved",
+  "value": 520,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E010": {
+  "expected": "approved",
+  "value": 180,
+  "policyId": "refunds",
+  "why": "routine envelope"
+ },
+ "E011": {
+  "expected": "approved",
+  "value": 9,
+  "policyId": "discounts",
+  "why": "routine envelope"
+ },
+ "E012": {
+  "expected": "approved",
+  "value": 7,
+  "policyId": "discounts",
+  "why": "routine envelope"
+ },
+ "E013": {
+  "expected": "approved",
+  "value": 9,
+  "policyId": "discounts",
+  "why": "routine envelope"
+ },
+ "E014": {
+  "expected": "approved",
+  "value": 5,
+  "policyId": "discounts",
+  "why": "routine envelope"
+ },
+ "E015": {
+  "expected": "approved",
+  "value": 800,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0016"
+ },
+ "E016": {
+  "expected": "approved",
+  "value": 45,
+  "policyId": "payment_terms",
+  "why": "good-law precedent dec-0052"
+ },
+ "E017": {
+  "expected": "approved",
+  "value": 45,
+  "policyId": "payment_terms",
+  "why": "good-law precedent dec-0176"
+ },
+ "E018": {
+  "expected": "approved",
+  "value": 14,
+  "policyId": "discounts",
+  "why": "good-law precedent dec-0056"
+ },
+ "E019": {
+  "expected": "approved",
+  "value": 12,
+  "policyId": "discounts",
+  "why": "standing rule rule-discount-multiyear-growth"
+ },
+ "E020": {
+  "expected": "approved",
+  "value": 16,
+  "policyId": "discounts",
+  "why": "good-law precedent dec-0166"
+ },
+ "E021": {
+  "expected": "approved",
+  "value": 800,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0018"
+ },
+ "E022": {
+  "expected": "approved",
+  "value": 19,
+  "policyId": "discounts",
+  "why": "good-law precedent dec-0094"
+ },
+ "E023": {
+  "expected": "approved",
+  "value": 11,
+  "policyId": "discounts",
+  "why": "good-law precedent dec-0094"
+ },
+ "E024": {
+  "expected": "approved",
+  "value": 1250,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0214"
+ },
+ "E025": {
+  "expected": "approved",
+  "value": 950,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0060"
+ },
+ "E026": {
+  "expected": "approved",
+  "value": 800,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0020"
+ },
+ "E027": {
+  "expected": "approved",
+  "value": 11,
+  "policyId": "discounts",
+  "why": "good-law precedent dec-0026"
+ },
+ "E028": {
+  "expected": "approved",
+  "value": 11,
+  "policyId": "discounts",
+  "why": "good-law precedent dec-0122"
+ },
+ "E029": {
+  "expected": "approved",
+  "value": 1100,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0020"
+ },
+ "E030": {
+  "expected": "approved",
+  "value": 11,
+  "policyId": "discounts",
+  "why": "good-law precedent dec-0122"
+ },
+ "E031": {
+  "expected": "approved",
+  "value": 11,
+  "policyId": "discounts",
+  "why": "standing rule rule-discount-multiyear-growth"
+ },
+ "E032": {
+  "expected": "approved",
+  "value": 11,
+  "policyId": "discounts",
+  "why": "good-law precedent dec-0094"
+ },
+ "E033": {
+  "expected": "approved",
+  "value": 13,
+  "policyId": "discounts",
+  "why": "standing rule rule-discount-multiyear-growth"
+ },
+ "E034": {
+  "expected": "approved",
+  "value": 12,
+  "policyId": "discounts",
+  "why": "standing rule rule-discount-multiyear-growth"
+ },
+ "E035": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.5"
+ },
+ "E036": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.5"
+ },
+ "E037": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.5"
+ },
+ "E038": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.5"
+ },
+ "E039": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.5"
+ },
+ "E040": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.5"
+ },
+ "E041": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "discounts",
+  "why": "violates discounts-v2 §2.4"
+ },
+ "E042": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "discounts",
+  "why": "violates discounts-v2 §2.4"
+ },
+ "E043": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "discounts",
+  "why": "violates discounts-v2 §2.4"
+ },
+ "E044": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "discounts",
+  "why": "violates discounts-v2 §2.4"
+ },
+ "E045": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "payment_terms",
+  "why": "violates payment_terms-v2 §3.3"
+ },
+ "E046": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "payment_terms",
+  "why": "violates payment_terms-v2 §3.3"
+ },
+ "E047": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.8"
+ },
+ "E048": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.8"
+ },
+ "E049": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.8"
+ },
+ "E050": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.8"
+ },
+ "E051": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.8"
+ },
+ "E052": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.8"
+ },
+ "E053": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.7"
+ },
+ "E054": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "discounts",
+  "why": "violates discounts-v2 §2.5"
+ },
+ "E055": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "refunds",
+  "why": "violates refunds-v3 §4.7"
+ },
+ "E056": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "discounts",
+  "why": "violates discounts-v2 §2.5"
+ },
+ "E057": {
+  "expected": "denied",
+  "value": null,
+  "policyId": "payment_terms",
+  "why": "violates payment_terms-v2 §3.4"
+ },
+ "E058": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E059": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E060": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E061": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E062": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E063": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E064": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E065": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E066": {
+  "expected": "counter",
+  "value": 1200,
+  "policyId": "refunds",
+  "why": "good law covers up to 1200"
+ },
+ "E067": {
+  "expected": "counter",
+  "value": 1200,
+  "policyId": "refunds",
+  "why": "good law covers up to 1200"
+ },
+ "E068": {
+  "expected": "counter",
+  "value": 1200,
+  "policyId": "refunds",
+  "why": "good law covers up to 1200"
+ },
+ "E069": {
+  "expected": "counter",
+  "value": 1200,
+  "policyId": "refunds",
+  "why": "good law covers up to 1200"
+ },
+ "E070": {
+  "expected": "counter",
+  "value": 1200,
+  "policyId": "refunds",
+  "why": "good law covers up to 1200"
+ },
+ "E071": {
+  "expected": "counter",
+  "value": 1200,
+  "policyId": "refunds",
+  "why": "good law covers up to 1200"
+ },
+ "E072": {
+  "expected": "counter",
+  "value": 1200,
+  "policyId": "refunds",
+  "why": "good law covers up to 1200"
+ },
+ "E073": {
+  "expected": "counter",
+  "value": 1200,
+  "policyId": "refunds",
+  "why": "good law covers up to 1200"
+ },
+ "E074": {
+  "expected": "approved",
+  "value": 1700,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0022"
+ },
+ "E075": {
+  "expected": "approved",
+  "value": 1950,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0022"
+ },
+ "E076": {
+  "expected": "approved",
+  "value": 1800,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0022"
+ },
+ "E077": {
+  "expected": "approved",
+  "value": 1850,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0022"
+ },
+ "E078": {
+  "expected": "approved",
+  "value": 1650,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0022"
+ },
+ "E079": {
+  "expected": "approved",
+  "value": 1500,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0022"
+ },
+ "E080": {
+  "expected": "approved",
+  "value": 1650,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0022"
+ },
+ "E081": {
+  "expected": "approved",
+  "value": 1950,
+  "policyId": "refunds",
+  "why": "good-law precedent dec-0022"
+ },
+ "E082": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E083": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E084": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E085": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E086": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E087": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "discounts",
+  "why": "covered by good law but above the delegation"
+ },
+ "E088": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "discounts",
+  "why": "covered by good law but above the delegation"
+ },
+ "E089": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "discounts",
+  "why": "covered by good law but above the delegation"
+ },
+ "E090": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "discounts",
+  "why": "covered by good law but above the delegation"
+ },
+ "E091": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E092": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E093": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E094": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E095": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "only precedent that is not good law covers it"
+ },
+ "E096": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E097": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E098": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E099": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E100": {
+  "expected": "escalated",
+  "value": null,
+  "policyId": "refunds",
+  "why": "covered by good law but above the delegation"
+ },
+ "E101": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E102": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E103": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E104": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E105": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E106": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E107": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E108": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E109": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E110": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E111": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ },
+ "E112": {
+  "expected": "refused",
+  "value": null,
+  "policyId": "refunds",
+  "why": "not a Northwind account"
+ }
+}

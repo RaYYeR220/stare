@@ -1,0 +1,16 @@
+{
+  "name": "@stare/eval",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "tsx src/generate.ts",
+    "run": "tsx src/run.ts"
+  },
+  "dependencies": {
+    "@stare/core": "workspace:*",
+    "@stare/llm": "workspace:*",
+    "@stare/seed": "workspace:*",
+    "dotenv": "16.6.1"
+  }
+}
