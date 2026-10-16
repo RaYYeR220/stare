@@ -312,7 +312,8 @@ const ACCOUNT_NAMES = [
 const TIER_OF: Record<string, Tier> = {
   'Acme Logistics': 'growth', 'Bluefin Analytics': 'growth', 'Halcyon Media': 'growth', 'Kestrel Foods': 'growth',
   'Northstar Robotics': 'enterprise', 'Lumen Retail': 'growth', 'Willow Pharma': 'enterprise', 'Dunmore Hospitals': 'enterprise',
-  'Elmstead University': 'enterprise', 'Harbor City Transit': 'enterprise',
+  'Elmstead University': 'enterprise', 'Harbor City Transit': 'enterprise', 'Fernway Travel': 'growth', 'Meridian Freight': 'growth',
+  'Driftwood Studios': 'growth', 'Paloma Foods': 'enterprise', 'Quarry Games': 'growth', 'Glasshouse Media': 'growth',
 };
 const REGIONS = ['NA-East', 'NA-West', 'EU-West', 'EU-Central', 'APAC'];
 const OWNERS = ['p-hana', 'p-luis', 'p-noah', 'p-amara', 'p-felix', 'p-zoe', 'p-ravi', 'p-ethan'];

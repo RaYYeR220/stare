@@ -45,7 +45,7 @@ export const inbox: InboxItem[] = [
     at: ANCHOR + 5 * H,
     channel: '#support-escalations',
     from: 'p-felix',
-    text: 'Sable Mining wants a $600 refund for the duplicate charge in the October run.',
+    text: 'Sable Mining wants a $600 refund for the duplicate charge in the October run, charged 13 days ago.',
     expect: 'deny: account in collections',
   },
   {
@@ -126,7 +126,7 @@ export const inbox: InboxItem[] = [
     channel: '#billing-ops',
     from: 'p-felix',
     text: 'Harbor City Transit is public sector, statutory terms are Net-60.',
-    expect: 'escalate to the controller',
+    expect: 'counter at Net-45 on good law; Net-60 needs the controller',
   },
   {
     id: 'in-terms-90',

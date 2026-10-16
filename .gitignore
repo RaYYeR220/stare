@@ -3,6 +3,7 @@ dist/
 .next/
 .vercel/
 coverage/
+.cache/
 .env
 .env.*
 !.env.example
