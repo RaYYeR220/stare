@@ -16,7 +16,7 @@ export const APPROVE_QUERIES = {
 MATCH (e:Escalation {id:$id})-[:FOR]->(c:Case)-[:FOR]->(a:Account)
 OPTIONAL MATCH (e)-[:ROUTED_TO]->(p:Person)
 RETURN e.status AS status, c.id AS caseId, c.policyId AS policyId, c.value AS value, c.days AS days, c.reason AS reason,
-       c.text AS text, a.id AS accountId, a.name AS account, p.id AS routedTo, p.name AS routedName`,
+       c.text AS text, c.filedBy AS filedBy, a.id AS accountId, a.name AS account, p.id AS routedTo, p.name AS routedName`,
   ),
   authority: q(
     'approve.authorityNow',
@@ -34,11 +34,11 @@ RETURN p.name AS name, p.leftAt > $now AS active, coalesce(cap, 0) AS cap, count
   commit: q(
     'approve.commitHumanDecision',
     'rw',
-    "Record a person's ruling on an escalation. Their authority, tenure and independence are re-checked inside the write; if any fails, nothing is written.",
+    "Record a person's ruling on an escalation. Their authority, tenure and independence (not the account owner, not the filer) are re-checked inside the write; if any fails, nothing is written.",
     `
 ${LEDGER_HEAD}
 MATCH (e:Escalation {id:$escalationId}) WHERE e.status = 'open'
-MATCH (e)-[:FOR]->(c:Case) WHERE c.status <> 'decided'
+MATCH (e)-[:FOR]->(c:Case) WHERE c.status <> 'decided' AND c.filedBy <> $personId
 MATCH (pv:PolicyVersion {id:$pvId}) WHERE pv.effectiveFrom <= $now AND $now < pv.effectiveTo
 MATCH (a:Account {id:$accountId}), (rs:Reason {code:$reason})
 MATCH (p:Person {id:$personId}) WHERE p.leftAt > $now
@@ -96,12 +96,17 @@ export interface ResolveResult {
 export async function resolveEscalation(ctx: EngineCtx, input: ResolveInput): Promise<ResolveResult> {
   const now = ctx.clock.now();
   const res: ResolveResult = { ok: false, refusal: null, decisionId: null, ledgerSeq: null, outcome: null, value: null, approver: null, citations: [], proposedRules: [] };
-  const [e] = await ctx.db.ro<{ status: string; caseId: string; policyId: PolicyId; value: number; days: number | null; reason: string; text: string; accountId: string; account: string; routedTo: string }>(
+  const [e] = await ctx.db.ro<{ status: string; caseId: string; policyId: PolicyId; value: number; days: number | null; reason: string; text: string; filedBy: string; accountId: string; account: string; routedTo: string }>(
     APPROVE_QUERIES.load,
     { id: input.escalationId },
   );
   if (!e) return { ...res, refusal: { code: 'NOT_FOUND', detail: 'no such escalation' } };
   if (e.status !== 'open') return { ...res, refusal: { code: 'NOT_OPEN', detail: `escalation is ${e.status}` } };
+  if (e.filedBy === input.personId) return { ...res, refusal: { code: 'CONFLICT', detail: 'nobody rules on a request they filed' } };
+  if (input.approve && input.value !== undefined) {
+    const ok = typeof input.value === 'number' && Number.isFinite(input.value) && input.value > 0 && input.value <= e.value;
+    if (!ok) return { ...res, refusal: { code: 'BAD_VALUE', detail: `an approval must be a positive amount no larger than requested (${e.value})` } };
+  }
   const value = input.approve ? (input.value ?? e.value) : 0;
   const [auth] = await ctx.db.ro<{ name: string; active: boolean; cap: number; owns: boolean }>(APPROVE_QUERIES.authority, {
     personId: input.personId, policyId: e.policyId, accountId: e.accountId, now,
