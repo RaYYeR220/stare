@@ -56,7 +56,7 @@ CREATE (d:Decision {id:$decisionId, caseId:c.id, outcome:$outcome, value:$value,
 CREATE (d)-[:DECIDES]->(c), (d)-[:APPLIED_POLICY]->(pv), (d)-[:MADE_BY]->(p), (d)-[:ABOUT]->(a), (d)-[:BECAUSE]->(rs), (e)-[:RESOLVED_BY]->(d)
 SET c.status = 'decided', e.status = $status, e.resolvedAt = $now
 FOREACH (x IN CASE WHEN $outcome = 'approved' THEN [d] ELSE [] END | SET x:Exception)
-FOREACH (x IN precs | CREATE (x)-[:PRECEDENT_FOR {similarity: 1.0, at: $now}]->(d))
+FOREACH (x IN precs | CREATE (x)-[:PRECEDENT_FOR {similarity: 1.0, at: $now}]->(d), (d)-[:CITES]->(x))
 WITH lh, c, d
 OPTIONAL MATCH (c)-[:FROM]->(s:Span)
 WITH lh, d, collect(s) AS ss

@@ -154,11 +154,11 @@ RETURN cand.id AS id, pathWeight AS hops, [n IN nodes(path) | n.id] AS pathIds, 
 MERGE (c:Case {key:$key})
 ON CREATE SET c.id = $caseId, c.policyId = $policyId, c.accountId = $accountId, c.value = $value, c.days = $days,
   c.reason = $reason, c.tier = $tier, c.accountStatus = $accountStatus, c.text = $text, c.at = $now, c.status = 'open',
-  c.filedBy = $filedBy, c.created = $now
+  c.filedBy = $filedBy, c.nonce = $nonce
 WITH c
 OPTIONAL MATCH (d:Decision)-[:DECIDES]->(c)
 OPTIONAL MATCH (e:Escalation {status:'open'})-[:FOR]->(c)
-RETURN c.id AS id, c.status AS status, c.created = $now AS created, d.id AS decisionId, e.id AS escalationId`,
+RETURN c.id AS id, c.status AS status, c.nonce = $nonce AS created, d.id AS decisionId, e.id AS escalationId`,
   ),
 
   caseLinks: q(
@@ -221,7 +221,7 @@ CREATE (d)-[:DECIDES]->(c), (d)-[:APPLIED_POLICY]->(pv), (d)-[:MADE_BY]->(maker)
 SET c.status = 'decided'
 FOREACH (x IN CASE WHEN $exception THEN [d] ELSE [] END | SET x:Exception)
 FOREACH (x IN CASE WHEN b IS NULL OR $cost = 0 THEN [] ELSE [b] END | SET x.remaining = x.remaining - $cost, x.version = x.version + 1)
-FOREACH (p IN precs | CREATE (p)-[:PRECEDENT_FOR {similarity: coalesce(head([x IN $sims WHERE x.id = p.id | x.sim]), 0.0), at: $now}]->(d))
+FOREACH (p IN precs | CREATE (p)-[:PRECEDENT_FOR {similarity: coalesce(head([x IN $sims WHERE x.id = p.id | x.sim]), 0.0), at: $now}]->(d), (d)-[:CITES]->(p))
 FOREACH (x IN CASE WHEN rule IS NULL THEN [] ELSE [rule] END | CREATE (d)-[:CITES_RULE]->(x))
 FOREACH (x IN CASE WHEN auth IS NULL THEN [] ELSE [auth] END | CREATE (d)-[:ON_AUTHORITY_OF]->(x))
 WITH lh, c, d, b

@@ -194,7 +194,7 @@ export async function seedGraph(db: Db, t: TenantData, opts: SeedOptions): Promi
   await unwind(
     db,
     t.decisions.flatMap((d) => d.cites.map((c) => ({ d: d.id, p: c.id, sim: c.similarity, at: d.at }))),
-    'MATCH (d:Decision {id:r.d}), (p:Decision {id:r.p}) CREATE (p)-[:PRECEDENT_FOR {similarity:r.sim, at:r.at}]->(d)',
+    'MATCH (d:Decision {id:r.d}), (p:Decision {id:r.p}) CREATE (p)-[:PRECEDENT_FOR {similarity:r.sim, at:r.at}]->(d), (d)-[:CITES]->(p)',
     'precedent-for',
   );
   await unwind(

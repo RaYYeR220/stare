@@ -133,7 +133,7 @@ export async function decide(ctx: EngineCtx, req: DecideRequest): Promise<Verdic
     const [c] = (
       await db.rw<{ id: string; status: string; created: boolean; decisionId: string | null; escalationId: string | null }>(Q.caseUpsert, {
         key, caseId, policyId, accountId: best!.id, value, days: intake.days, reason, tier: best!.tier, accountStatus: best!.status,
-        text: req.text ?? '', now, filedBy: req.principal.id,
+        text: req.text ?? '', now, filedBy: req.principal.id, nonce: randomBytes(8).toString('hex'),
       })
     ).rows;
     v.caseId = c!.id;
@@ -376,10 +376,18 @@ async function commitEscalation(db: Db, v: Verdict, now: number, commitment: str
 async function replay(
   db: Db,
   v: Verdict,
-  c: { id: string; status: string; decisionId: string | null; escalationId: string | null },
+  c0: { id: string; status: string; decisionId: string | null; escalationId: string | null },
   finish: () => Promise<Verdict>,
 ): Promise<Verdict> {
+  let c = c0;
   v.caseId = c.id;
+  // The original request may still be deciding: wait briefly for its outcome rather than guess.
+  for (let i = 0; i < 40 && !c.decisionId && !c.escalationId; i++) {
+    await new Promise((r) => setTimeout(r, 50));
+    const [d] = await db.ro<{ id: string }>(Q.existingDecision, { caseId: c.id });
+    const [e] = await db.ro<{ id: string }>({ name: 'engine.openEscalation', mode: 'ro', doc: 'Open escalation for a case.', cypher: "MATCH (e:Escalation {status:'open'})-[:FOR]->(:Case {id:$caseId}) RETURN e.id AS id" }, { caseId: c.id });
+    c = { ...c, decisionId: d?.id ?? null, escalationId: e?.id ?? null };
+  }
   if (c.decisionId) {
     const [d] = await db.ro<{ id: string; outcome: Outcome; value: number; requested: number; basis: Basis; seq: number; narrative: string; policyVersionId: string }>(Q.existingDecision, { caseId: c.id });
     if (d) {
